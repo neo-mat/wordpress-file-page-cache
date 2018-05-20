@@ -2,7 +2,7 @@
 namespace O10n;
 
 /**
- * File Page Cache with PHP Opcache boost option
+ * File Page Cache with PHP Opcache
  *
  * Advanced file based page cache with PHP Opcache boost option (500x faster than Redis and Memcached)
  *
@@ -10,9 +10,9 @@ namespace O10n;
  * @package           o10n
  *
  * @wordpress-plugin
- * Plugin Name:       File Page Cache with PHP Opcache boost
+ * Plugin Name:       File Page Cache with PHP Opcache
  * Description:       Advanced file based page cache with PHP Opcache boost option (500x faster than Redis and Memcached).
- * Version:           0.0.7
+ * Version:           0.0.8
  * Author:            Optimization.Team
  * Author URI:        https://optimization.team/
  * GitHub Plugin URI: https://github.com/o10n-x/wordpress-file-page-cache
@@ -30,7 +30,7 @@ if (defined('WP_INSTALLING') && WP_INSTALLING) {
 }
 
 // settings
-$module_version = '0.0.7';
+$module_version = '0.0.8';
 $minimum_core_version = '0.0.48';
 $plugin_path = dirname(__FILE__);
 
@@ -60,7 +60,7 @@ new Module(
     array(
         'page' => array(
             'path' => 'page-cache/',
-            'file_ext' => '.html',
+            'file_ext' => '.php',
             'alt_exts' => false,
             'expire' => false // @todo 259200 // expire after 3 days
         )

@@ -260,6 +260,16 @@ class Filecache extends Controller implements Controller_Interface
 
         $end = microtime(true);
         header('X-O10n-Cache: ' . number_format((($end - $start) * 1000), 5).'ms');
+        
+        // display opcache status
+        if (defined('O10N_DEBUG') && O10N_DEBUG) {
+            if ($pagemeta[2]) {
+                $file_path = $this->cache->path('filecache', 'page', $cachehash);
+                header('X-O10n-Opcache: ' . (opcache_is_script_cached($file_path) ? 'Yes' : 'Not in cache'));
+            } else {
+                header('X-O10n-Opcache: Disabled');
+            }
+        }
 
         header('Content-Length: ' . (function_exists('mb_strlen') ? mb_strlen($gzipHTML, '8bit') : strlen($gzipHTML)));
 

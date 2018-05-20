@@ -1,11 +1,11 @@
-=== File Page Cache with PHP Opcache boost ===
+=== File Page Cache with PHP Opcache ===
 Contributors: o10n
 Donate link: https://github.com/o10n-x/
 Tags: page cache, file cache, cache, php opcache, opcache
 Requires at least: 4.0
 Requires PHP: 5.4
 Tested up to: 4.9.4
-Stable tag: 0.0.7
+Stable tag: 0.0.8
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
