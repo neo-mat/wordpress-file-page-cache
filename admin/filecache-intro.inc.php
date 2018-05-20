@@ -28,9 +28,9 @@ $module_version = $view->module->version();
 			
 			<p class="about-text" style="min-height:inherit;">This plugin is a file page cache for WordPress.</p>
 
-			<p class="about-text" style="min-height:inherit;">The plugin provides a PHP Opcache based boost function that has proven to be <a href="https://blog.graphiq.com/500x-faster-caching-than-redis-memcache-apc-in-php-hhvm-dcd26e8447ad" target="_blank">500x faster than Redis and Memcached</a> memory cache.</p>
+			<p class="about-text" style="min-height:inherit;">The plugin provides a PHP Opcache based boost function for a <a href="https://medium.com/@Gu55/love-the-blazing-speed-b9a90a70c192" target="_blank">500x faster than Redis and Memcached</a> memory cache.</p>
 
-			<!--p class="about-text info_white" style="min-height:inherit;border-color:#0073aa;background:#f1faff;"><strong><span class="dashicons dashicons-welcome-comments" style="line-height: 32px;font-size: 34px;width: inherit;color:#0073aa;"></span></strong> The optimization plugins have been removed from WordPress.org. Read the story <a href="https://github.com/o10n-x/wordpress-css-optimization/issues/4" target="_blank">here</a>.</p-->
+			
 
 			<p class="about-text" style="min-height:inherit;">If you are happy with the plugin, please consider to <span class="star" style="display:inline-block;vertical-align:middle;"><a class="github-button" data-manual="1" data-size="large" href="https://github.com/o10n-x/wordpress-file-page-cache" data-icon="octicon-star" data-show-count="true" aria-label="Star o10n-x/wordpress-file-page-cache on GitHub">Star</a></span> on Github.</p>
 			

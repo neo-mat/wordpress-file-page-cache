@@ -190,6 +190,9 @@ class Filecache extends Controller implements Controller_Interface
         $start = microtime(true);
 
         $pagemeta = $this->cache->meta('filecache', 'page', $cachehash, true);
+
+        // apply meta filter
+        $pagemeta = apply_filters('o10n_page_cache_meta', $pagemeta);
         
         if (!$pagemeta || (isset($pagemeta[3]) && ($pagemeta[0] + $pagemeta[3]) < time())) {
             return false;
@@ -205,6 +208,9 @@ class Filecache extends Controller implements Controller_Interface
         header("Last-Modified: ".gmdate("D, d M Y H:i:s", $pagemeta[0])." GMT");
         header("Etag: " . $pagemeta[1]);
         header('Vary: Accept-Encoding');
+
+        // apply custom headers
+        apply_filters('o10n_page_cache_headers');
 
         // verify 304 status
         if (function_exists('apache_request_headers')) {

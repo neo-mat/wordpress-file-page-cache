@@ -5,7 +5,7 @@ Tags: page cache, file cache, cache, php opcache, opcache
 Requires at least: 4.0
 Requires PHP: 5.4
 Tested up to: 4.9.4
-Stable tag: 0.0.2
+Stable tag: 0.0.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -13,7 +13,7 @@ Advanced file based page cache with PHP Opcache boost option (500x faster than R
 
 == Description ==
 
-This plugin is a file based page cache with PHP Opcache boost option for [500x faster than Redis and Memcached](https://blog.graphiq.com/500x-faster-caching-than-redis-memcache-apc-in-php-hhvm-dcd26e8447ad) cache speed.
+This plugin is a file based page cache with PHP Opcache boost option for [500x faster than Redis and Memcached](https://medium.com/@Gu55/love-the-blazing-speed-b9a90a70c192) cache speed.
 
 Due to the limit of the PHP Opcache total size, the boost option can be configured for individual pages.
 
