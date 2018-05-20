@@ -63,16 +63,21 @@ $this->form_start(__('File Page Cache', 'o10n'), 'filecache');
 ]</pre></div>
 
     
-                <div class="suboption" data-ns="filecache"<?php $visible('filecache');  ?>>
 
+        </td>
+    </tr>
+    
+    <tr valign="top" data-ns="filecache"<?php $visible('filecache'); ?>>
+        <th scope="row">&nbsp;</th>
+        <td style="padding-top:0px;">
+            
                     <h5 class="h">&nbsp;Cache Expire</h5>
                     <input type="number" style="width:120px;" min="1" name="o10n[filecache.expire]" value="<?php $value('filecache.expire', 86400); ?>" placeholder="86400" />
                     <p class="description">Enter a time in seconds for the cache to expire. The default is <code>86400</code> seconds (1 day).</p>
 
 
                 <p class="suboption info_yellow">You can set the expire time of a page using the method <code>\O10n\page_cache_expire([time_in_seconds]);</code>.</p>
-                </div>
-
+       
         </td>
     </tr>
 

@@ -132,8 +132,10 @@ class AdminViewFilecache extends AdminViewBase
                     'filecache.enabled' => 'bool',
                     'filecache.expire' => 'int',
                     'filecache.filter.enabled' => 'bool',
+                    'filecache.filter.type' => 'string',
                     'filecache.opcache.enabled' => 'bool',
                     'filecache.opcache.filter.enabled' => 'bool',
+                    'filecache.opcache.filter.type' => 'string',
                     'filecache.replace' => 'json-array'
                 ));
 
@@ -142,7 +144,6 @@ class AdminViewFilecache extends AdminViewBase
                 if ($forminput->bool('filecache.enabled')) {
                     if ($forminput->bool('filecache.filter.enabled')) {
                         $forminput->type_verify(array(
-                            'filecache.filter.type' => 'string',
                             'filecache.filter.config' => 'json-array'
                         ));
                     }
@@ -152,7 +153,6 @@ class AdminViewFilecache extends AdminViewBase
                 if ($forminput->bool('filecache.opcache.enabled')) {
                     if ($forminput->bool('filecache.opcache.filter.enabled')) {
                         $forminput->type_verify(array(
-                            'filecache.opcache.filter.type' => 'string',
                             'filecache.opcache.filter.config' => 'json-array'
                         ));
                     }

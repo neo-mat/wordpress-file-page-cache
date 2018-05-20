@@ -45,20 +45,30 @@ class Filecache extends Controller implements Controller_Interface
         }
         
         // File Page Cache requires SSL
-        if ($this->options->bool('filecache.enabled')) {
+        if ($this->options->bool('filecache.enabled') && !is_user_logged_in()) {
 
             // verify if page is cached
             if ((is_null($this->cache_enabled) || $this->cache_enabled) && !defined('O10N_NO_PAGE_CACHE') && !isset($_GET['o10n-no-cache'])) {
-                $cachehash = md5($this->url->request());
-                if ($this->cache->exists('filecache', 'page', $cachehash)) {
 
-                    // print cached page
-                    $this->print($cachehash);
-                }
+                // add action for printing page cache
+                add_action('o10n_setup_completed', array( $this, 'print_cache' ), 10);
             }
 
             // add filter for page cache
             add_filter('o10n_html_final', array( $this, 'update_cache' ), 1000, 1);
+        }
+    }
+
+    /**
+     * Print page cache
+     */
+    final public function print_cache()
+    {
+        $cachehash = md5($this->url->request());
+        if ($this->cache->exists('filecache', 'page', $cachehash)) {
+
+            // print cached page
+            $this->print($cachehash);
         }
     }
 
@@ -210,7 +220,7 @@ class Filecache extends Controller implements Controller_Interface
         header('Vary: Accept-Encoding');
 
         // apply custom headers
-        apply_filters('o10n_page_cache_headers');
+        apply_filters('o10n_page_cache_headers', true);
 
         // verify 304 status
         if (function_exists('apache_request_headers')) {
