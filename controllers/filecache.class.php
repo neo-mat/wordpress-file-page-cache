@@ -51,7 +51,7 @@ class Filecache extends Controller implements Controller_Interface
             if ((is_null($this->cache_enabled) || $this->cache_enabled) && !defined('O10N_NO_PAGE_CACHE') && !isset($_GET['o10n-no-cache'])) {
 
                 // add action for printing page cache
-                add_action('o10n_setup_completed', array( $this, 'print_cache' ), 10);
+                add_action('o10n_setup_completed', array( $this, 'output_cache' ), 10);
             }
 
             // add filter for page cache
@@ -62,13 +62,90 @@ class Filecache extends Controller implements Controller_Interface
     /**
      * Print page cache
      */
-    final public function print_cache()
+    final public function output_cache()
     {
         $cachehash = md5($this->url->request());
         if ($this->cache->exists('filecache', 'page', $cachehash)) {
 
             // print cached page
-            $this->print($cachehash);
+            $start = microtime(true);
+
+            $pagemeta = $this->cache->meta('filecache', 'page', $cachehash, true);
+
+            // apply meta filter
+            $pagemeta = apply_filters('o10n_page_cache_meta', $pagemeta);
+            
+            if (!$pagemeta || (isset($pagemeta[3]) && ($pagemeta[0] + $pagemeta[3]) < time())) {
+                return false;
+            }
+
+            $utf8 = apply_filters('o10n_page_cache_utf8', true);
+            if ($utf8) {
+                header("Content-type: text/html; charset=UTF-8");
+            } else {
+                header("Content-type: text/html");
+            }
+
+            header("Last-Modified: ".gmdate("D, d M Y H:i:s", $pagemeta[0])." GMT");
+            header("Etag: " . $pagemeta[1]);
+            header('Vary: Accept-Encoding');
+
+            // apply custom headers
+            apply_filters('o10n_page_cache_headers', true);
+
+            // verify 304 status
+            if (function_exists('apache_request_headers')) {
+                $request = apache_request_headers();
+                $modified = (isset($request[ 'If-Modified-Since' ])) ? $request[ 'If-Modified-Since' ] : null;
+            } else {
+                if (isset($_SERVER[ 'HTTP_IF_MODIFIED_SINCE' ])) {
+                    $modified = $_SERVER[ 'HTTP_IF_MODIFIED_SINCE' ];
+                } else {
+                    $modified = null;
+                }
+            }
+            $last_modified = gmdate("D, d M Y H:i:s", $pagemeta[0]).' GMT';
+
+            if (
+                ($modified && $modified == $last_modified)
+                || (isset($_SERVER['HTTP_IF_NONE_MATCH']) && $_SERVER['HTTP_IF_NONE_MATCH'] == $pagemeta[1])
+                ) {
+                header("HTTP/1.1 304 Not Modified");
+                exit;
+            }
+
+            // get compressed page data
+            $gzipHTML = $this->cache->get('filecache', 'page', $cachehash, false, $pagemeta[2]);
+
+            // detect gzip support
+            if (!isset($_SERVER[ 'HTTP_ACCEPT_ENCODING' ]) || (isset($_SERVER[ 'HTTP_ACCEPT_ENCODING' ]) && strpos($_SERVER[ 'HTTP_ACCEPT_ENCODING' ], 'gzip') === false)) {
+
+                // uncompress
+                $gzipHTML = gzinflate($gzipHTML);
+            } else {
+                // output gzip
+                ini_set("zlib.output_compression", "Off");
+            
+                header('Content-Encoding: gzip');
+            }
+
+            $end = microtime(true);
+            header('X-O10n-Cache: ' . number_format((($end - $start) * 1000), 5).'ms');
+            
+            // display opcache status
+            if (defined('O10N_DEBUG') && O10N_DEBUG && $this->opcache_enabled) {
+                if ($pagemeta[2]) {
+                    $file_path = $this->cache->path('filecache', 'page', $cachehash);
+                    header('X-O10n-Opcache: ' . (opcache_is_script_cached($file_path) ? 'Yes' : 'Not in cache'));
+                } else {
+                    header('X-O10n-Opcache: Disabled');
+                }
+            }
+
+            header('Content-Length: ' . (function_exists('mb_strlen') ? mb_strlen($gzipHTML, '8bit') : strlen($gzipHTML)));
+
+            echo $gzipHTML;
+            exit();
         }
     }
 
@@ -188,93 +265,6 @@ class Filecache extends Controller implements Controller_Interface
     final public function expire($timestamp)
     {
         $this->cache_expire = $timestamp;
-    }
-
-    /**
-     * Print cached page
-     *
-     * @param string $cachehash Cache hash
-     */
-    final public function print($cachehash)
-    {
-        $start = microtime(true);
-
-        $pagemeta = $this->cache->meta('filecache', 'page', $cachehash, true);
-
-        // apply meta filter
-        $pagemeta = apply_filters('o10n_page_cache_meta', $pagemeta);
-        
-        if (!$pagemeta || (isset($pagemeta[3]) && ($pagemeta[0] + $pagemeta[3]) < time())) {
-            return false;
-        }
-
-        $utf8 = apply_filters('o10n_page_cache_utf8', true);
-        if ($utf8) {
-            header("Content-type: text/html; charset=UTF-8");
-        } else {
-            header("Content-type: text/html");
-        }
-
-        header("Last-Modified: ".gmdate("D, d M Y H:i:s", $pagemeta[0])." GMT");
-        header("Etag: " . $pagemeta[1]);
-        header('Vary: Accept-Encoding');
-
-        // apply custom headers
-        apply_filters('o10n_page_cache_headers', true);
-
-        // verify 304 status
-        if (function_exists('apache_request_headers')) {
-            $request = apache_request_headers();
-            $modified = (isset($request[ 'If-Modified-Since' ])) ? $request[ 'If-Modified-Since' ] : null;
-        } else {
-            if (isset($_SERVER[ 'HTTP_IF_MODIFIED_SINCE' ])) {
-                $modified = $_SERVER[ 'HTTP_IF_MODIFIED_SINCE' ];
-            } else {
-                $modified = null;
-            }
-        }
-        $last_modified = gmdate("D, d M Y H:i:s", $pagemeta[0]).' GMT';
-
-        if (
-            ($modified && $modified == $last_modified)
-            || (isset($_SERVER['HTTP_IF_NONE_MATCH']) && $_SERVER['HTTP_IF_NONE_MATCH'] == $pagemeta[1])
-            ) {
-            header("HTTP/1.1 304 Not Modified");
-            exit;
-        }
-
-        // get compressed page data
-        $gzipHTML = $this->cache->get('filecache', 'page', $cachehash, false, $pagemeta[2]);
-
-        // detect gzip support
-        if (!isset($_SERVER[ 'HTTP_ACCEPT_ENCODING' ]) || (isset($_SERVER[ 'HTTP_ACCEPT_ENCODING' ]) && strpos($_SERVER[ 'HTTP_ACCEPT_ENCODING' ], 'gzip') === false)) {
-
-            // uncompress
-            $gzipHTML = gzinflate($gzipHTML);
-        } else {
-            // output gzip
-            ini_set("zlib.output_compression", "Off");
-        
-            header('Content-Encoding: gzip');
-        }
-
-        $end = microtime(true);
-        header('X-O10n-Cache: ' . number_format((($end - $start) * 1000), 5).'ms');
-        
-        // display opcache status
-        if (defined('O10N_DEBUG') && O10N_DEBUG) {
-            if ($pagemeta[2]) {
-                $file_path = $this->cache->path('filecache', 'page', $cachehash);
-                header('X-O10n-Opcache: ' . (opcache_is_script_cached($file_path) ? 'Yes' : 'Not in cache'));
-            } else {
-                header('X-O10n-Opcache: Disabled');
-            }
-        }
-
-        header('Content-Length: ' . (function_exists('mb_strlen') ? mb_strlen($gzipHTML, '8bit') : strlen($gzipHTML)));
-
-        echo $gzipHTML;
-        exit();
     }
 
     /**
