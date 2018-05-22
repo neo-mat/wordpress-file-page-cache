@@ -145,7 +145,7 @@ class Filecache extends Controller implements Controller_Interface
             header('Content-Length: ' . (function_exists('mb_strlen') ? mb_strlen($gzipHTML, '8bit') : strlen($gzipHTML)));
 
             echo $gzipHTML;
-            exit();
+            exit;
         }
     }
 
@@ -274,7 +274,7 @@ class Filecache extends Controller implements Controller_Interface
      */
     final private function match_policy($policy, $filter_type = 'include')
     {
-        $match = ($filter_type === 'include') ? false : true;
+        $match = ($filter_type === 'include') ? true : false;
 
         if (!is_array($policy)) {
             return $match;
@@ -284,7 +284,7 @@ class Filecache extends Controller implements Controller_Interface
         $url = $this->url->request();
 
         foreach ($policy as $condition) {
-            if ($filter_type === 'include' && $match) {
+            if ($filter_type === 'include' && is_array($match)) {
                 break;
             }
 
