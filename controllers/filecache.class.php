@@ -48,6 +48,12 @@ class Filecache extends Controller implements Controller_Interface
 
         // served stale cache
         if (defined('O10N_FILECACHE_SERVED_STALE')) {
+
+            // clear output
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+
             $this->shutdown->add(array($this, 'update_stale'));
             exit;
         }
@@ -187,9 +193,9 @@ class Filecache extends Controller implements Controller_Interface
             
             // cache content
             if ($opcache) {
-                $cachedata = array(gzdeflate($buffer, 9, FORCE_GZIP), $response_headers);
+                $cachedata = array(gzencode($buffer, 9), $response_headers);
             } else {
-                $cachedata = gzdeflate($buffer, 9, FORCE_GZIP);
+                $cachedata = gzencode($buffer, 9);
                 $cachemeta[4] = $response_headers;
             }
 

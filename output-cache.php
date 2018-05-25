@@ -184,7 +184,7 @@ class Filecache_Output
             if (!isset($_SERVER[ 'HTTP_ACCEPT_ENCODING' ]) || (isset($_SERVER[ 'HTTP_ACCEPT_ENCODING' ]) && strpos($_SERVER[ 'HTTP_ACCEPT_ENCODING' ], 'gzip') === false)) {
 
                 // uncompress for browsers that do not support GZIP
-                $gzipHTML = gzinflate($gzipHTML);
+                $gzipHTML = gzdecode($gzipHTML);
             } else {
 
                 // disable PHP output compression
@@ -198,8 +198,8 @@ class Filecache_Output
             header('X-O10n-Cache: ' . number_format((($end - $start) * 1000), 5).'ms');
             
             // display opcache status
-            if (defined('O10N_DEBUG') && O10N_DEBUG && $this->opcache_enabled) {
-                if ($pagemeta[2]) {
+            if (defined('O10N_DEBUG') && O10N_DEBUG) {
+                if ($pagemeta[2] && function_exists('opcache_is_script_cached')) {
                     header('X-O10n-Opcache: ' . (opcache_is_script_cached($cache_file) ? 'Yes' : 'Not in cache'));
                 } else {
                     header('X-O10n-Opcache: Disabled');
@@ -244,6 +244,9 @@ class Filecache_Output
                     }
                     flush();
                 }
+
+                // capture output
+                ob_start();
             }
         }
     }
