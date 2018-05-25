@@ -27,6 +27,31 @@ $this->form_start(__('File Page Cache', 'o10n'), 'filecache');
             <p class="description" style="margin-bottom:1em;">When enabled, HTML pages are cached using static files.</p>
 
             <div class="suboption" data-ns="filecache"<?php $visible('filecache'); ?>>
+
+<?php
+    // verify availability of advanced-cache.php
+    $advanced_cache_file = WP_CONTENT_DIR . '/advanced-cache.php';
+    if (!file_exists($advanced_cache_file)) {
+        print '<div class="info_yellow" style="line-height: 24px;padding-bottom: 8px;padding-top: 8px;"><strong><span class="dashicons dashicons-dashboard"></span></strong> Install <a href="https://make.wordpress.org/core/2016/08/13/global-overloading-in-advanced-cache-php/" target="_blank">advanced-cache.php</a> to improve cache performance (serve cache before MySQL). To enable this feature you need to add <code>define(\'WP_CACHE\', true);</code> in wp-config.php.
+        <p><label><input type="checkbox" value="1" name="o10n[filecache.advanced_cache]" /> Create advanced-cache.php</label></p></div>';
+    } else {
+        $advanced_cache_content = file_get_contents($advanced_cache_file);
+        if (strpos($advanced_cache_content, $view->module->dir_path() . 'output-cache.php') === false) {
+            print '<div class="info_yellow" style="line-height: 24px;padding-bottom: 8px;padding-top: 8px;"><strong><span class="dashicons dashicons-dashboard"></span></strong> The installed <a href="https://make.wordpress.org/core/2016/08/13/global-overloading-in-advanced-cache-php/" target="_blank">advanced-cache.php</a> is from a different plugin. advanced-cache.php can improve performance (serve cache before MySQL). Overwrite advanced-cache.php with the version of this plugin (<a href="' . $view->module->dir_url() . 'advanced-cache.sample.txt" download="advanced-cache.php">download sample</a>) or manually include <code title="'.esc_attr($view->module->dir_path() . 'output-cache.php').'">'.$this->file->safe_path($view->module->dir_path()).'output-cache.php</code> in the existing advanced-cache.php file.
+                <p><label><input type="checkbox" value="1" name="o10n[filecache.advanced_cache]" /> Overwrite advanced-cache.php</label></p>
+            </div>';
+        } else {
+            if (!defined('WP_CACHE') || !WP_CACHE) {
+                print '<div class="info_yellow" style="line-height: 20px;padding-bottom: 5px;padding-top: 8px;"><strong><span class="dashicons dashicons-dashboard"></span></strong> <a href="https://make.wordpress.org/core/2016/08/13/global-overloading-in-advanced-cache-php/" target="_blank">advanced-cache.php</a> is installed successfully however, to enable it in WordPress you need to add <code>define(\'WP_CACHE\', true);</code> in wp-config.php.</p>
+                </div>';
+            } else {
+                print '<div class="ok_green" style="border-width:1px;line-height: 20px;padding-bottom: 5px;padding-top: 8px;"><strong><span class="dashicons dashicons-dashboard"></span></strong> <a href="https://make.wordpress.org/core/2016/08/13/global-overloading-in-advanced-cache-php/" target="_blank">advanced-cache.php</a> is installed successfully.</p>
+                </div>';
+            }
+        }
+    }
+?>
+
                 <label><input type="checkbox" value="1" name="o10n[filecache.filter.enabled]" data-json-ns="1"<?php $checked('filecache.filter.enabled'); ?> /> Enable cache policy</label>
                 <span data-ns="filecache.filter"<?php $visible('filecache.filter'); ?>>
                     <select name="o10n[filecache.filter.type]" data-ns-change="filecache.filter" data-json-default="<?php print esc_attr(json_encode('include')); ?>">

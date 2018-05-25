@@ -1,0 +1,19 @@
+<?php
+namespace O10n;
+
+/**
+ * WordPress cache performance enhancement
+ *
+ * How to use:
+ *
+ * Modify the path to /output-cache.php and copy the file to /wp-content/advanced-cache.php
+ *
+ * @package    optimization
+ * @subpackage optimization/admin
+ * @author     Optimization.Team <info@optimization.team>
+ */
+
+$output_cache_controller = '[PATH_TO]/wp-content/plugins/wordpress-file-page-cache/output-cache.php';
+if (file_exists($output_cache_controller)) {
+    require $output_cache_controller;
+}

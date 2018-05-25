@@ -200,6 +200,35 @@ class AdminViewFilecache extends AdminViewBase
                     }
                 }
 
+                // create advanced-cache.php
+                if ($forminput->bool('filecache.advanced_cache')) {
+
+                    // advanced-cache.php location
+                    $advanced_cache_file = WP_CONTENT_DIR . '/advanced-cache.php';
+
+                    // create or overwrite file
+                    try {
+                        $this->file->put_contents($advanced_cache_file, '<?php
+namespace O10n;
+
+/**
+ * WordPress cache performance enhancement
+ *
+ * @package    optimization
+ * @subpackage optimization/admin
+ * @author     Optimization.Team <info@optimization.team>
+ */
+
+$output_cache_controller = \'' . $this->core->modules('filecache')->dir_path() . 'output-cache.php\';
+if (file_exists($output_cache_controller)) {
+    require $output_cache_controller;
+}
+');
+                    } catch (\Exception $err) {
+                        $forminput->error('advanced-cache.php', $err);
+                    }
+                }
+
                 // store config in opcache
                 add_action('o10n_forminput_saved', array($this, 'save_config'));
 
