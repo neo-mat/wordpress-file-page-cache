@@ -25,7 +25,11 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
         'settings' => array(
             'title' => 'Page Cache',
             'title_attr' => 'Page Cache Settings'
-        )
+        )/*,
+        'preload' => array(
+            'title' => 'Preload',
+            'title_attr' => 'Preload Cache'
+        )*/
     );
     /**
      * Load controller

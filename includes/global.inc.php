@@ -17,9 +17,9 @@ function page_cache($state = true)
 }
 
 // Enable/disable PHP Opcache boost
-function page_cache_boost($state = true)
+function page_cache_opcache($state = true)
 {
-    Core::get('filecache')->boost($state);
+    Core::get('filecache')->opcache($state);
 }
 
 // Set page cache expire

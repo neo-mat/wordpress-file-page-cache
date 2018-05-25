@@ -31,7 +31,9 @@ class Filecache extends Controller implements Controller_Interface
             'url',
             'env',
             'options',
-            'cache'
+            'cache',
+            'http',
+            'shutdown'
         ));
     }
 
@@ -43,109 +45,27 @@ class Filecache extends Controller implements Controller_Interface
         if (!$this->env->is_optimization()) {
             return;
         }
-        
+
+        // served stale cache
+        if (defined('O10N_FILECACHE_SERVED_STALE')) {
+            $this->shutdown->add(array($this, 'update_stale'));
+            exit;
+        }
+
         // File Page Cache requires SSL
-        if ($this->options->bool('filecache.enabled') && !is_user_logged_in()) {
+        if ($this->options->bool('filecache.enabled')) {
 
             // verify if page is cached
             if ((is_null($this->cache_enabled) || $this->cache_enabled) && !defined('O10N_NO_PAGE_CACHE') && !isset($_GET['o10n-no-cache'])) {
 
-                // add action for printing page cache
-                add_action('o10n_setup_completed', array( $this, 'output_cache' ), 10);
-            }
-
-            // add filter for page cache
-            add_filter('o10n_html_final', array( $this, 'update_cache' ), 1000, 1);
-        }
-    }
-
-    /**
-     * Print page cache
-     */
-    final public function output_cache()
-    {
-        $cachehash = md5($this->url->request());
-        if ($this->cache->exists('filecache', 'page', $cachehash)) {
-
-            // print cached page
-            $start = microtime(true);
-
-            $pagemeta = $this->cache->meta('filecache', 'page', $cachehash, true);
-
-            // apply meta filter
-            $pagemeta = apply_filters('o10n_page_cache_meta', $pagemeta);
-            
-            if (!$pagemeta || (isset($pagemeta[3]) && ($pagemeta[0] + $pagemeta[3]) < time())) {
-                return false;
-            }
-
-            $utf8 = apply_filters('o10n_page_cache_utf8', true);
-            if ($utf8) {
-                header("Content-type: text/html; charset=UTF-8");
-            } else {
-                header("Content-type: text/html");
-            }
-
-            header("Last-Modified: ".gmdate("D, d M Y H:i:s", $pagemeta[0])." GMT");
-            header("Etag: " . $pagemeta[1]);
-            header('Vary: Accept-Encoding');
-
-            // apply custom headers
-            apply_filters('o10n_page_cache_headers', true);
-
-            // verify 304 status
-            if (function_exists('apache_request_headers')) {
-                $request = apache_request_headers();
-                $modified = (isset($request[ 'If-Modified-Since' ])) ? $request[ 'If-Modified-Since' ] : null;
-            } else {
-                if (isset($_SERVER[ 'HTTP_IF_MODIFIED_SINCE' ])) {
-                    $modified = $_SERVER[ 'HTTP_IF_MODIFIED_SINCE' ];
-                } else {
-                    $modified = null;
+                // output cache
+                if (!defined('O10N_FILECACHE_ADVANCED_OUTPUT')) {
+                    require $this->core->modules('filecache')->dir_path() . 'output-cache.php';
                 }
+        
+                // add filter for page cache
+                add_filter('o10n_html_final', array( $this, 'update_cache' ), 1000, 1);
             }
-            $last_modified = gmdate("D, d M Y H:i:s", $pagemeta[0]).' GMT';
-
-            if (
-                ($modified && $modified == $last_modified)
-                || (isset($_SERVER['HTTP_IF_NONE_MATCH']) && $_SERVER['HTTP_IF_NONE_MATCH'] == $pagemeta[1])
-                ) {
-                header("HTTP/1.1 304 Not Modified");
-                exit;
-            }
-
-            // get compressed page data
-            $gzipHTML = $this->cache->get('filecache', 'page', $cachehash, false, $pagemeta[2]);
-
-            // detect gzip support
-            if (!isset($_SERVER[ 'HTTP_ACCEPT_ENCODING' ]) || (isset($_SERVER[ 'HTTP_ACCEPT_ENCODING' ]) && strpos($_SERVER[ 'HTTP_ACCEPT_ENCODING' ], 'gzip') === false)) {
-
-                // uncompress
-                $gzipHTML = gzinflate($gzipHTML);
-            } else {
-                // output gzip
-                ini_set("zlib.output_compression", "Off");
-            
-                header('Content-Encoding: gzip');
-            }
-
-            $end = microtime(true);
-            header('X-O10n-Cache: ' . number_format((($end - $start) * 1000), 5).'ms');
-            
-            // display opcache status
-            if (defined('O10N_DEBUG') && O10N_DEBUG && $this->opcache_enabled) {
-                if ($pagemeta[2]) {
-                    $file_path = $this->cache->path('filecache', 'page', $cachehash);
-                    header('X-O10n-Opcache: ' . (opcache_is_script_cached($file_path) ? 'Yes' : 'Not in cache'));
-                } else {
-                    header('X-O10n-Opcache: Disabled');
-                }
-            }
-
-            header('Content-Length: ' . (function_exists('mb_strlen') ? mb_strlen($gzipHTML, '8bit') : strlen($gzipHTML)));
-
-            echo $gzipHTML;
-            exit;
         }
     }
 
@@ -156,7 +76,7 @@ class Filecache extends Controller implements Controller_Interface
      */
     final public function update_cache($buffer)
     {
-        if ((!is_null($this->cache_enabled) && !$this->cache_enabled) || defined('O10N_NO_PAGE_CACHE')) {
+        if ((!is_null($this->cache_enabled) && !$this->cache_enabled) || defined('O10N_NO_PAGE_CACHE') || isset($_GET['o10n-no-cache'])) {
             return $buffer;
         }
 
@@ -166,17 +86,46 @@ class Filecache extends Controller implements Controller_Interface
         // request URL
         $url = $this->url->request();
 
+        // bypass policy
+        if ($this->options->bool('filecache.bypass.enabled')) {
+            $bypass_policy = $this->options->get('filecache.bypass.config', array());
+        } else {
+            $bypass_policy = array(
+                array(
+                    'match' => 'condition',
+                    'method' => 'is_user_logged_in'
+                )
+            );
+        }
+
+        if ($this->match_policy($bypass_policy, 'exclude')) {
+            //return $buffer; // bypass cache
+        }
+
         // verify cache policy
         if (!is_null($this->cache_enabled)) {
             $cache = $this->cache_enabled;
         } elseif ($this->options->bool('filecache.filter.enabled')) {
             $cache = $this->match_policy($this->options->get('filecache.filter.config', array()), $this->options->get('filecache.filter.type', 'include'));
+
+            // exclude from cache
+            if (isset($cache['bypass']) && $cache['bypass']) {
+                $cache = false;
+            }
         } else {
             $cache = true;
         }
 
         if ($cache) {
-            $cachehash = md5($url);
+
+            // custom cache hash
+            $hash_format = false;
+            if ($this->options->bool('filecache.hash.enabled')) {
+                $hash_format = $this->options->get('filecache.hash.config');
+            }
+
+            // cache hash
+            $cachehash = Filecache_Output::cache_hash($hash_format);
 
             if (is_array($cache) && isset($cache['expire']) && is_numeric($cache['expire']) && intval($cache['expire']) > 1) {
                 $this->cache_expire = intval($cache['expire']);
@@ -221,20 +170,49 @@ class Filecache extends Controller implements Controller_Interface
                 } else {
                     $opcache = true;
                 }
+            } else {
+                $opcache = false;
             }
 
-            // store in cache
-            $this->cache->put('filecache', 'page', $cachehash, $buffer, false, true, $opcache, array(
+            // response headers
+            $response_headers = $this->response_headers();
+
+            // cache meta
+            $cachemeta = array(
                 time(),
                 md5($buffer),
                 $opcache,
                 $this->cache_expire
-            ), true);
+            );
+            
+            // cache content
+            if ($opcache) {
+                $cachedata = array(gzdeflate($buffer, 9, FORCE_GZIP), $response_headers);
+            } else {
+                $cachedata = gzdeflate($buffer, 9, FORCE_GZIP);
+                $cachemeta[4] = $response_headers;
+            }
+
+            // store in cache
+            $this->cache->put('filecache', 'page', $cachehash, $cachedata, false, false, $opcache, $cachemeta, true);
 
             header('X-O10n-Cache: MISS');
         }
 
         return $buffer;
+    }
+
+    /**
+     * Update stale cache
+     */
+    final public function update_stale()
+    {
+        // request URL
+        $url = $this->url->request();
+
+        // wp HTTP API request
+
+        file_put_contents(trailingslashit(O10N_CACHE_DIR) . 'test.txt', 'test');
     }
 
     /**
@@ -252,7 +230,7 @@ class Filecache extends Controller implements Controller_Interface
      *
      * @param bool $state Enabled state
      */
-    final public function boost($state = true)
+    final public function opcache($state = true)
     {
         $this->opcache_enabled = $state;
     }
@@ -383,5 +361,222 @@ class Filecache extends Controller implements Controller_Interface
         }
 
         return $match;
+    }
+
+
+    /**
+     * Header policy
+     *
+     * @param array $policy Policy config
+     */
+    final private function match_header_policy($header, $policy, $filter_type = 'include')
+    {
+        $match = ($filter_type === 'include') ? true : false;
+
+        if (!is_array($policy)) {
+            return $match;
+        }
+
+        foreach ($policy as $condition) {
+            if ($filter_type === 'include' && is_array($match)) {
+                break;
+            }
+
+            // url match
+            if (is_string($condition)) {
+                $condition = array(
+                    'match' => $condition,
+                    'remove' => ($filter_type === 'include') ? true : false
+                );
+            }
+
+            if (!is_array($condition)) {
+                continue;
+            }
+
+            if (isset($condition['regex']) && $condition['regex']) {
+                try {
+                    if (preg_match($condition['match'], $header)) {
+                        if ($filter_type === 'exclude') {
+                            return $condition;
+                        } else {
+                            $match = $condition;
+                        }
+                    }
+                } catch (\Exception $err) {
+                }
+            } else {
+                if (stripos($header, $condition['match']) !== false) {
+                    if ($filter_type === 'exclude') {
+                        return $condition;
+                    } else {
+                        $match = $condition;
+                    }
+                }
+            }
+        }
+
+        return $match;
+    }
+
+    /**
+     * Return response headers
+     */
+    final private function response_headers()
+    {
+        $headers = array();
+        if (function_exists('apache_response_headers')) {
+            $headers = apache_response_headers();
+        }
+        if (empty($headers) && function_exists('headers_list')) {
+            $headers = array();
+            foreach (headers_list() as $hdr) {
+                $header_parts = explode(':', $hdr, 2);
+                $header_name = isset($header_parts[0]) ? trim($header_parts[0]) : '';
+                $header_value = isset($header_parts[1]) ? trim($header_parts[1]) : '';
+
+                $headers[$header_name] = $header_value;
+            }
+        }
+
+        $cached_headers = array(
+            array(), // add
+            array() // remove
+        );
+
+        $headers_policy = false;
+        if ($this->options->bool('filecache.headers.enabled')) {
+            $headers_policy_type = $this->options->get('filecache.headers.type', 'include');
+            $headers_policy = $this->options->get('filecache.headers.config', array());
+        }
+
+        // ignore headers
+        $ignore_headers = apply_filters('o10n_page_cache_ignore_headers', array('last-modified', 'etag', 'content-encoding', 'content-type'));
+
+        // apply header policy
+        foreach ($headers as $key => $value) {
+            foreach ($ignore_headers as $header) {
+                if (stripos($key, $header) !== false) {
+                    continue 2;
+                }
+            }
+
+            if ($headers_policy === false) {
+                $cached_headers[0][$key] = $value;
+            } else {
+                $policy = $this->match_header_policy($key . ': ' . $value, $headers_policy, $headers_policy_type);
+                if ($policy) {
+                    if (!isset($policy['remove']) || !$policy['remove']) {
+                        $cached_headers[0][$key] = $value;
+                    }
+                }
+            }
+        }
+
+        // add removed headers
+        if ($this->core->module_loaded('security')) {
+            $removed_headers = $this->core->get('securityheaders')->removed_headers();
+            $cached_headers[1] = $removed_headers;
+        }
+
+        return $cached_headers;
+    }
+
+    /**
+     * Preload cache for page
+     *
+     * @param string $url             The URL to preload
+     * @param array  $request_headers The request headers to include
+     */
+    final public function preload($url = false, $request_headers = false, $force_cache_update = false)
+    {
+        $request = array();
+        if ($request_headers) {
+            $request['headers'] = $request_headers;
+        }
+
+        // force cache update
+        if ($force_cache_update) {
+            if (!isset($request['headers'])) {
+                $request['headers'] = array();
+            }
+            $request['headers']['x-o10n-fc-force'] = 1;
+        }
+
+        // mark preload request (prevent sending page data to save bandwidth)
+        $request['headers']['x-o10n-fc-preload'] = 1;
+
+        // get asset content
+        try {
+            $response = $this->http->get($url, $request, false);
+        } catch (HTTPException $e) {
+            throw new Exception('Failed to preload file cache for ' . esc_url($url) . ' Status: '.$e->getStatus().' Error: ' . $e->getMessage(), 'filecache');
+        }
+
+        // invalid status code
+        $status = wp_remote_retrieve_response_code($response);
+        if ($status !== 200) {
+            throw new Exception('Failed to preload file cache for ' . esc_url($url) . ' Status: ' . $status, 'filecache');
+        }
+
+        // OK
+    }
+
+    /**
+     * Query URLs for preload processor
+     *
+     * @param  array $query_config Query configuration
+     * @return array List with URLs to preload
+     */
+    final public function preload_query($query_config = false)
+    {
+        if (!$query_config || empty($query_config)) {
+            $query_config = $this->preload_default_query();
+        }
+    }
+
+    /**
+     * Return default URL query config
+     *
+     * @param  array $query_config Query configuration
+     * @return array List with URLs to preload
+     */
+    final public function preload_default_query()
+    {
+        return array(
+            array(
+                'method' => 'get_pages',
+                'link_method' => 'get_permalink',
+                'priority' => 1
+            ),
+            array(
+                'method' => 'get_posts',
+                'link_method' => 'get_permalink',
+                'priority' => 5
+            ),
+            array(
+                'method' => 'get_categories',
+                'arguments' => array(
+                    'hide_empty' => true,
+                    'depth' => 0,
+                    'hierarchical' => true,
+                    'orderby' => 'count',
+                    'order' => 'desc'
+                ),
+                'link_method' => 'get_category_link',
+                'priority' => 10
+            ),
+            array(
+                'method' => 'get_terms',
+                'arguments' => array(
+                    'taxonomy' => 'post_tag',
+                    'orderby' => 'count',
+                    'order' => 'desc',
+                    'hide_empty' => true
+                ),
+                'link_method' => 'get_term_link',
+                'priority' => 15
+            )
+        );
     }
 }

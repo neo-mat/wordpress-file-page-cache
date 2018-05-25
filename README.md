@@ -53,11 +53,27 @@ Google offers another new website performance test that is much tougher than the
 
 This plugin is a file based page cache with PHP Opcache boost option ([500x faster than Redis and Memcached](https://blog.graphiq.com/500x-faster-caching-than-redis-memcache-apc-in-php-hhvm-dcd26e8447ad)).
 
-The plugin provides a cache policy editor that enables to selectively enable/disable or configure the page cache based on page URLs or conditional methods such as `is_page`.
+The PHP Opcache boost option makes the plugin the fastest PHP based file cache plugin available. There is no file IO required to serve a cached page while it supports conditional requests (`304 - Not Modified`) to save bandwidth.
+
+The plugin provides a cache policy editor that enables to selectively enable/disable or configure the page cache based on page URLs (with regular expression support) or conditional methods such as `is_page`. The cache policy enables to customize the cache expire time and stale update option for individual pages.
 
 ![Cache Policy Editor](https://github.com/o10n-x/wordpress-file-page-cache/blob/master/docs/images/cache-policy-editor.png)
  
-PHP Opcache may have a limited total size. The boost option can be configured for individual pages using a individual cache policy.
+PHP Opcache may have a limited total size. The PHP Opcache option can be configured for individual pages using a individual cache policy.
+
+### Advanced configuration
+
+The plugin provides advanced configuration such as a bypass policy, a HTTP header cache policy and an option to create a custom MD5 cache hash using PHP variables and methods to enable caching of dynamic content (multiple cache versions for the same URL).
+
+![Custom Cache Hash](https://github.com/o10n-x/wordpress-file-page-cache/blob/master/docs/images/cache-hash.png)
+
+The plugin provides an option to serve stale (expired) cache to visitors while the cache is updated in the background.
+
+### Cache Preloader
+
+The plugin provides an option to automatically preload the cache on a set time. An advanced preload policy enables to configure precisely what pages to preload and to set the preload interval, priority and to force a cache update for individual pages.
+
+![Cache Preload](https://github.com/o10n-x/wordpress-file-page-cache/blob/master/docs/images/cache-preload.png)
 
 ### HTML Search & Replace
 

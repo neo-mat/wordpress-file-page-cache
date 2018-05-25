@@ -28,7 +28,7 @@ $module_version = $view->module->version();
 			
 			<p class="about-text" style="min-height:inherit;">This plugin is a file page cache for WordPress.</p>
 
-			<p class="about-text" style="min-height:inherit;">The plugin provides a PHP Opcache based boost function for a <a href="https://medium.com/@Gu55/love-the-blazing-speed-b9a90a70c192" target="_blank">500x faster than Redis and Memcached</a> memory cache.</p>
+			<p class="about-text" style="min-height:inherit;">The plugin provides a PHP Opcache boost option for a <a href="https://medium.com/@Gu55/love-the-blazing-speed-b9a90a70c192" target="_blank">500x faster than Redis and Memcached</a> memory cache. This makes the plugin the fastest PHP based file cache plugin available. There is no file IO required to serve a cached page while it supports conditional requests (304) to save bandwidth.</p>
 
 			
 

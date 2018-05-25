@@ -33,7 +33,10 @@ class AdminViewFilecache extends AdminViewBase
         return parent::construct($Core, array(
             'json',
             'file',
-            'AdminClient'
+            'options',
+            'filecache',
+            'AdminClient',
+            'json'
         ));
     }
     
@@ -103,6 +106,7 @@ class AdminViewFilecache extends AdminViewBase
         $tab = (isset($_REQUEST['tab'])) ? trim($_REQUEST['tab']) : $this->default_tab_view;
         switch ($tab) {
             case "settings":
+            case "preload":
             case "intro":
                 $view_key = 'filecache-' . $tab;
             break;
@@ -133,10 +137,21 @@ class AdminViewFilecache extends AdminViewBase
                     'filecache.expire' => 'int',
                     'filecache.filter.enabled' => 'bool',
                     'filecache.filter.type' => 'string',
+
+                    'filecache.bypass.enabled' => 'bool',
+
+                    'filecache.headers.enabled' => 'bool',
+                    'filecache.headers.type' => 'string',
+
+                    'filecache.hash.enabled' => 'bool',
+
                     'filecache.opcache.enabled' => 'bool',
                     'filecache.opcache.filter.enabled' => 'bool',
                     'filecache.opcache.filter.type' => 'string',
-                    'filecache.replace' => 'json-array'
+                    'filecache.replace' => 'json-array',
+
+                    'filecache.stale.enabled' => 'bool',
+                    'filecache.stale.max_age' => 'int-empty'
                 ));
 
 
@@ -149,6 +164,33 @@ class AdminViewFilecache extends AdminViewBase
                     }
                 }
 
+                // bypass policy filter
+                if ($forminput->bool('filecache.bypass.enabled')) {
+                    if ($forminput->bool('filecache.bypass.enabled')) {
+                        $forminput->type_verify(array(
+                            'filecache.bypass.config' => 'json-array'
+                        ));
+                    }
+                }
+
+                // headers policy filter
+                if ($forminput->bool('filecache.headers.enabled')) {
+                    if ($forminput->bool('filecache.headers.enabled')) {
+                        $forminput->type_verify(array(
+                            'filecache.headers.config' => 'json-array'
+                        ));
+                    }
+                }
+
+                // hash format
+                if ($forminput->bool('filecache.hash.enabled')) {
+                    if ($forminput->bool('filecache.hash.enabled')) {
+                        $forminput->type_verify(array(
+                            'filecache.hash.config' => 'json-array'
+                        ));
+                    }
+                }
+
                 // opcache policy filter
                 if ($forminput->bool('filecache.opcache.enabled')) {
                     if ($forminput->bool('filecache.opcache.filter.enabled')) {
@@ -157,7 +199,54 @@ class AdminViewFilecache extends AdminViewBase
                         ));
                     }
                 }
+
+                // store config in opcache
+                add_action('o10n_forminput_saved', array($this, 'save_config'));
+
+            break;
+            case "preload":
+
+                $forminput->type_verify(array(
+                    'filecache.preload.enabled' => 'bool',
+                    'filecache.preload.interval.enabled' => 'bool',
+                    'filecache.preload.interval.interval' => 'int-empty',
+                    'filecache.preload.start' => 'string',
+                    'filecache.preload.query' => 'json-array',
+                    'filecache.preload.http_interval' => 'int-empty'
+                ));
+
             break;
         }
+    }
+    
+    /**
+     * Save PHP Opcache config
+     */
+    final public function save_config()
+    {
+        $cache_dir = (defined('O10N_CACHE_DIR')) ? $this->file->trailingslashit(O10N_CACHE_DIR) . 'page-cache/' : $this->file->trailingslashit(WP_CONTENT_DIR) . 'cache/o10n/page-cache/';
+        $config_file = $cache_dir . 'config.php';
+        
+        // get config
+        $config = $this->options->get('filecache.*', false, true);
+
+        // store in PHP Opcache
+        $this->file->put_opcache($config_file, $config);
+    }
+
+    /**
+     * Return default query configuration
+     */
+    final public function preload_default_query()
+    {
+        return $this->filecache->preload_default_query();
+    }
+
+    /**
+     * Return beautified JSON
+     */
+    final public function json_encode($array)
+    {
+        return $this->json->beautify($array);
     }
 }
