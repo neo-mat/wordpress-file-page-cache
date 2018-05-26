@@ -53,7 +53,7 @@ Google offers another new website performance test that is much tougher than the
 
 This plugin is a file based page cache with PHP Opcache boost option ([500x faster than Redis and Memcached](https://blog.graphiq.com/500x-faster-caching-than-redis-memcache-apc-in-php-hhvm-dcd26e8447ad)).
 
-The PHP Opcache boost option makes the plugin the fastest PHP based file cache plugin available. There is no file IO required to serve a cached page while it supports conditional requests (`304 - Not Modified`) to save bandwidth.
+The PHP Opcache option enables to serve cache using WordPress `advanced-cache.php` (`WP_CACHE`) before MySQL and plugns are loaded, **with no file IO** (full memory based cache without serialization overhead). The cache supports conditional requests (`304 - Not Modified`) to save bandwidth.
 
 The plugin provides a cache policy editor that enables to selectively enable/disable or configure the page cache based on page URLs (with regular expression support) or conditional methods such as `is_page`. The cache policy enables to customize the cache expire time and stale update option for individual pages.
 
