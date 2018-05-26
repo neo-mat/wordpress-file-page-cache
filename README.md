@@ -65,7 +65,7 @@ PHP Opcache may have a limited total size. The PHP Opcache option can be configu
 
 The plugin provides advanced configuration such as a custom bypass policy, a HTTP header cache policy and more.
 
-## Dynamic Content Cache
+### Dynamic Content Cache
 
 The plugin provides an option to create a custom MD5 cache hash using PHP variables and methods to enable caching of dynamic content (multiple cache versions for the same URL).
 
