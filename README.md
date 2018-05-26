@@ -55,7 +55,9 @@ This plugin is a file based page cache with PHP Opcache support ([500x faster th
 
 ### PHP Opcache
 
-The PHP Opcache option enables to serve cache using WordPress `advanced-cache.php` (`WP_CACHE`) before MySQL and plugns are loaded, **with no file IO** (full memory based cache without serialization overhead). The cache supports conditional requests (`304 - Not Modified`) to save bandwidth.
+The PHP Opcache option enables to serve cache using WordPress `advanced-cache.php` (`WP_CACHE`) before MySQL and plugns are loaded, with **zero file IO** (full memory based cache without serialization overhead). The cache supports conditional requests (`304 - Not Modified`) to save bandwidth.
+
+When using PHP Opcache, the cache is as fast as it can be in PHP.
 
 ### Advanced configuration
 
