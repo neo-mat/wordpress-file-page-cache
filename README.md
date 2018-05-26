@@ -63,9 +63,15 @@ PHP Opcache may have a limited total size. The PHP Opcache option can be configu
 
 ### Advanced configuration
 
-The plugin provides advanced configuration such as a bypass policy, a HTTP header cache policy and an option to create a custom MD5 cache hash using PHP variables and methods to enable caching of dynamic content (multiple cache versions for the same URL).
+The plugin provides advanced configuration such as a custom bypass policy, a HTTP header cache policy and more.
+
+## Dynamic Content Cache
+
+The plugin provides an option to create a custom MD5 cache hash using PHP variables and methods to enable caching of dynamic content (multiple cache versions for the same URL).
 
 ![Custom Cache Hash](https://github.com/o10n-x/wordpress-file-page-cache/blob/master/docs/images/cache-hash.png)
+
+### Stale on update
 
 The plugin provides an option to serve stale (expired) cache to visitors while the cache is updated in the background.
 
