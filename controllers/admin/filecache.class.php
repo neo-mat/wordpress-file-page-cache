@@ -25,11 +25,34 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
         'settings' => array(
             'title' => 'Page Cache',
             'title_attr' => 'Page Cache Settings'
-        )/*,
+        ),
         'preload' => array(
             'title' => 'Preload',
             'title_attr' => 'Preload Cache'
-        )*/
+        ),
+        'opcache' => array(
+            'title' => 'PHP Opcache',
+            'title_attr' => 'PHP Opcache Status',
+            'subtabs' => array(
+                'overview' => array(
+                    'title' => 'Overview',
+                    'title_attr' => 'PHP Opcache overview',
+                    'href' => '#overview',
+                    'attrs' => 'data-for="overview"'
+                ),
+                'fileusage' => array(
+                    'title' => 'File Usage',
+                    'title_attr' => 'File Usage',
+                    'href' => '#files',
+                    'attrs' => 'data-for="files"'
+                ),
+                'reset' => array(
+                    'title' => '<span class="dashicons dashicons-update" style="font-size:16px;height:16px;line-height:16px;"></span> Reset Cache',
+                    'title_attr' => 'Reset PHP Opcache',
+                    'attrs' => 'id="resetCache" onclick="return confirm(\'Are you sure you want to reset the cache?\');"'
+                )
+            )
+        )
     );
     /**
      * Load controller
@@ -50,6 +73,7 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
      */
     protected function setup()
     {
+
         // settings link on plugin index
         add_filter('plugin_action_links_' . $this->core->modules('filecache')->basename(), array($this, 'settings_link'));
 
@@ -87,6 +111,9 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
                  'display'
              ));
         }
+
+        // set reset url
+        $this->tabs['opcache']['subtabs']['reset']['href'] = add_query_arg(array( 'page' => 'o10n-filecache', 'tab' => 'opcache', 'reset' => 1 ), admin_url($this->admin_base));
     }
 
     /**

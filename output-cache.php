@@ -395,6 +395,24 @@ class Filecache_Output
                         $cache_hash_components[] = $$component;
                     break;
                 }
+            } elseif (is_array($component) && isset($component['method'])) {
+                if (function_exists($component['method']) && is_callable($component['method'])) {
+                    $method = $component['method'];
+                    $arguments = (isset($component['attributes'])) ? $component['attributes'] : null;
+
+                    // call method
+                    if ($arguments === null) {
+                        $result = call_user_func($method);
+                    } else {
+                        $result = call_user_func_array($method, $arguments);
+                    }
+
+                    if (is_string($result) || is_numeric($result)) {
+                        $cache_hash_components[] = (string)$result;
+                    } else {
+                        $cache_hash_components[] = json_encode($result);
+                    }
+                }
             }
         }
 

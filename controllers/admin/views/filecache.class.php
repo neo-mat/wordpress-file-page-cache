@@ -107,6 +107,7 @@ class AdminViewFilecache extends AdminViewBase
         switch ($tab) {
             case "settings":
             case "preload":
+            case "opcache":
             case "intro":
                 $view_key = 'filecache-' . $tab;
             break;
@@ -262,7 +263,7 @@ if (file_exists($output_cache_controller)) {
         // create dir
         if (!is_dir($cache_dir)) {
             try {
-                $this->mkdir($cache_dir, false, true);
+                $this->file->mkdir($cache_dir, false, true);
             } catch (\Exception $e) {
                 throw new Exception('Failed to create cache directory. ' . $e->getMessage(), 'filecache');
             }

@@ -1,6 +1,8 @@
 <?php
+namespace O10n;
+
 /**
- * Intro admin template
+ * PHP Opcache admin template
  *
  * @package    optimization
  * @subpackage optimization/admin
@@ -10,550 +12,1297 @@
 if (!defined('ABSPATH')) {
     exit;
 }
+
+
+/**
+ * OPcache GUI
+ *
+ * A simple but effective single-file GUI for the OPcache PHP extension.
+ *
+ * @author Andrew Collington, andy@amnuts.com
+ * @version 2.4.0
+ * @link https://github.com/amnuts/opcache-gui
+ * @license MIT, http://acollington.mit-license.org/
+ */
+
+
 /*
-OCP - Opcache Control Panel   (aka Zend Optimizer+ Control Panel for PHP)
-Author: _ck_   (with contributions by GK, stasilok)
-Version: 0.1.7
-Free for any kind of use or modification, I am not responsible for anything, please share your improvements
+ * User configuration
+ */
 
-* revision history
-0.1.7  2015-09-01  regex fix for PHP7 phpinfo
-0.1.6  2013-04-12  moved meta to footer so graphs can be higher and reduce clutter
-0.1.5  2013-04-12  added graphs to visualize cache state, please report any browser/style bugs
-0.1.4  2013-04-09  added "recheck" to update files when using large revalidate_freq (or validate_timestamps=Off)
-0.1.3  2013-03-30  show host and php version, can bookmark with hashtag ie. #statistics - needs new layout asap
-0.1.2  2013-03-25  show optimization levels, number formatting, support for start_time in 7.0.2
-0.1.1  2013-03-18  today Zend completely renamed Optimizer+ to OPcache, adjusted OCP to keep working
-0.1.0  2013-03-17  added group/sort indicators, replaced "accelerator_" functions with "opcache_"
-0.0.6  2013-03-16  transition support as Zend renames product and functions for PHP 5.5 (stasilok)
-0.0.5  2013-03-10  added refresh button (GK)
-0.0.4  2013-02-18  added file grouping and sorting (click on headers) - code needs cleanup but gets the job done
-0.0.2  2013-02-14  first public release
-
-* known problems/limitations:
-Unlike APC, the Zend OPcache API
- - cannot determine when a file was put into the cache
- - cannot change settings on the fly
- - cannot protect opcache functions by restricting execution to only specific scripts/paths
-
-* todo:
-Extract variables for prefered ordering and better layout instead of just dumping into tables
-File list filter
-
-*/
+$options = [
+    'allow_filelist' => true,          // show/hide the files tab
+    'allow_invalidate' => true,          // give a link to invalidate files
+    'allow_reset' => true,          // give option to reset the whole cache
+    'allow_realtime' => true,          // give option to enable/disable real-time updates
+    'refresh_time' => 5,             // how often the data will refresh, in seconds
+    'size_precision' => 2,             // Digits after decimal point
+    'size_space' => false,         // have '1MB' or '1 MB' when showing sizes
+    'charts' => true,          // show gauge chart or just big numbers
+    'debounce_rate' => 250,           // milliseconds after key press to send keyup event when filtering
+    'cookie_name' => 'opcachegui',  // name of cookie
+    'cookie_ttl' => 365,            // days to store cookie
+    'admin_base' => $view->admin_base()
+];
 
 
-$time = time();
-define('CACHEPREFIX', function_exists('opcache_reset')?'opcache_':(function_exists('accelerator_reset')?'accelerator_':''));
-
-if (!empty($_GET['RESET'])) {
-    if (function_exists(CACHEPREFIX.'reset')) {
-        call_user_func(CACHEPREFIX.'reset');
-    }
-    header('Location: '.str_replace('?'.$_SERVER['QUERY_STRING'], '', $_SERVER['REQUEST_URI']));
-    exit;
-}
-
-if (!empty($_GET['RECHECK'])) {
-    if (function_exists(CACHEPREFIX.'invalidate')) {
-        $recheck = trim($_GET['RECHECK']);
-        $files = call_user_func(CACHEPREFIX.'get_status');
-        if (!empty($files['scripts'])) {
-            foreach ($files['scripts'] as $file => $value) {
-                if ($recheck === '1' || strpos($file, $recheck) === 0) {
-                    call_user_func(CACHEPREFIX.'invalidate', $file);
-                }
-            }
-        }
-        header('Location: '.str_replace('?'.$_SERVER['QUERY_STRING'], '', $_SERVER['REQUEST_URI']));
-    } else {
-        echo 'Sorry, this feature requires Zend Opcache newer than April 8th 2013';
-    }
-    exit;
-}
-
-?>
-<style type="text/css">
-	body {background-color: #fff; color: #000;}
-	body, td, th, h1, h2 {font-family: sans-serif;}
-	pre {margin: 0px; font-family: monospace;}
-	a:link,a:visited {color: #000099; text-decoration: none;}
-	a:hover {text-decoration: underline;}
-	table {border-collapse: collapse; width: 600px; }
-	.center {text-align: center;}
-	.center table { margin-left: auto; margin-right: auto; text-align: left;}
-	.center th { text-align: center !important; }
-	.middle {vertical-align:middle;}
-	td, th { border: 1px solid #000; font-size: 75%; vertical-align: baseline; padding: 3px; } 
-	h1 {font-size: 150%;}
-	h2 {font-size: 125%;}
-	.p {text-align: left;}
-	.e {background-color: #ccccff; font-weight: bold; color: #000; width:50%; white-space:nowrap;}
-	.h {background-color: #9999cc; font-weight: bold; color: #000;}
-	.v {background-color: #cccccc; color: #000;}
-	.vr {background-color: #cccccc; text-align: right; color: #000; white-space: nowrap;}
-	.b {font-weight:bold;}
-	.white, .white a {color:#fff;} 	
-	img {float: right; border: 0px;}
-	hr {width: 600px; background-color: #cccccc; border: 0px; height: 1px; color: #000;}
-	.meta, .small {font-size: 75%; }
-	.meta {margin: 2em 0;}
-	.meta a, th a {padding: 10px; white-space:nowrap; }
-	.buttons {margin:0 0 1em;}
-	.buttons a {margin:0 15px; background-color: #9999cc; color:#fff; text-decoration:none; padding:1px; border:1px solid #000; display:inline-block; width:5em; text-align:center;}
-	#files td.v a {font-weight:bold; color:#9999cc; margin:0 10px 0 5px; text-decoration:none; font-size:120%;}
-	#files td.v a:hover {font-weight:bold; color:#ee0000;}
-	.graph {display:inline-block; width:145px; margin:1em 0 1em 1px; border:0; vertical-align:top;}
-	.graph table {width:100%; height:150px; border:0; padding:0; margin:5px 0 0 0; position:relative;}
-	.graph td {vertical-align:middle; border:0; padding:0 0 0 5px;}
-	.graph .bar {width:25px; text-align:right; padding:0 2px; color:#fff;}
-	.graph .total {width:34px; text-align:center; padding:0 5px 0 0;}
-	.graph .total div {border:1px dashed #888; border-right:0; height:99%; width:12px; position:absolute; bottom:0; left:17px; z-index:-1;}
-	.graph .total span {background:#fff; font-weight:bold;}
-	.graph .actual {text-align:right; font-weight:bold; padding:0 5px 0 0;} 
-	.graph .red {background:#ee0000;}
-	.graph .green {background:#00cc00;}
-	.graph .brown {background:#8B4513;}
-</style>
-
-<body>
-<div class="center">
-
-<h1><a href="?">Opcache Control Panel</a></h1>
-
-<div class="buttons">
-	<a href="?ALL=1">Details</a>
-	<a href="?FILES=1&GROUP=2&SORT=3">Files</a>
-	<a href="?RESET=1" onclick="return confirm('RESET cache ?')">Reset</a>
-	<?php if (function_exists(CACHEPREFIX.'invalidate')) {
-    ?>
-	<a href="?RECHECK=1" onclick="return confirm('Recheck all files in the cache ?')">Recheck</a>
-	<?php
-} ?>
-	<a href="?" onclick="window.location.reload(true); return false">Refresh</a>
-</div>
-
-<?php 
-
-if (!function_exists(CACHEPREFIX.'get_status')) {
-    echo '<h2>Opcache not detected?</h2>';
-    die;
-}
-
-if (!empty($_GET['FILES'])) {
-    echo '<h2>files cached</h2>';
-    files_display();
-    echo '</div></body></html>';
-    exit;
-}
-
-if (!(isset($_REQUEST['GRAPHS']) && !$_REQUEST['GRAPHS']) && CACHEPREFIX == 'opcache_') {
-    graphs_display();
-    if (!empty($_REQUEST['GRAPHS'])) {
-        exit;
-    }
-}
-
-ob_start(); phpinfo(8); $phpinfo = ob_get_contents(); ob_end_clean();         // some info is only available via phpinfo? sadly buffering capture has to be used
-if (!preg_match('/module\_Zend.(Optimizer\+|OPcache).+?(\<table[^>]*\>.+?\<\/table\>).+?(\<table[^>]*\>.+?\<\/table\>)/is', $phpinfo, $opcache)) {
-}  // todo
-
-if (function_exists(CACHEPREFIX.'get_configuration')) {
-    echo '<h2>general</h2>';
-    $configuration = call_user_func(CACHEPREFIX.'get_configuration');
-}
-
-$host = function_exists('gethostname')?@gethostname():@php_uname('n'); if (empty($host)) {
-    $host = empty($_SERVER['SERVER_NAME'])?$_SERVER['HOST_NAME']:$_SERVER['SERVER_NAME'];
-}
-$version = array('Host' => $host);
-$version['PHP Version'] = 'PHP '.(defined('PHP_VERSION')?PHP_VERSION:'???').' '.(defined('PHP_SAPI')?PHP_SAPI:'').' '.(defined('PHP_OS')?' '.PHP_OS:'');
-$version['Opcache Version'] = empty($configuration['version']['version'])?'???':$configuration['version'][CACHEPREFIX.'product_name'].' '.$configuration['version']['version'];
-print_table($version);
-
-if (!empty($opcache[2])) {
-    echo preg_replace('/\<tr\>\<td class\="e"\>[^>]+\<\/td\>\<td class\="v"\>[0-9\,\. ]+\<\/td\>\<\/tr\>/', '', $opcache[2]);
-}
-
-if (function_exists(CACHEPREFIX.'get_status') && $status = call_user_func(CACHEPREFIX.'get_status')) {
-    $uptime = array();
-    if (!empty($status[CACHEPREFIX.'statistics']['start_time'])) {
-        $uptime['uptime'] = time_since($time, $status[CACHEPREFIX.'statistics']['start_time'], 1, '');
-    }
-    if (!empty($status[CACHEPREFIX.'statistics']['last_restart_time'])) {
-        $uptime['last_restart'] = time_since($time, $status[CACHEPREFIX.'statistics']['last_restart_time']);
-    }
-    if (!empty($uptime)) {
-        print_table($uptime);
-    }
-    
-    if (!empty($status['cache_full'])) {
-        $status['memory_usage']['cache_full'] = $status['cache_full'];
-    }
-    
-    echo '<h2 id="memory">memory</h2>';
-    print_table($status['memory_usage']);
-    unset($status[CACHEPREFIX.'statistics']['start_time'],$status[CACHEPREFIX.'statistics']['last_restart_time']);
-    echo '<h2 id="statistics">statistics</h2>';
-    print_table($status[CACHEPREFIX.'statistics']);
-}
-
-if (empty($_GET['ALL'])) {
-    meta_display();
-    exit;
-}
-  
-if (!empty($configuration['blacklist'])) {
-    echo '<h2 id="blacklist">blacklist</h2>';
-    print_table($configuration['blacklist']);
-}
-
-if (!empty($opcache[3])) {
-    echo '<h2 id="runtime">runtime</h2>';
-    echo $opcache[3];
-}
-
-$name = 'zend opcache'; $functions = get_extension_funcs($name);
-if (!$functions) {
-    $name = 'zend optimizer+';
-    $functions = get_extension_funcs($name);
-}
-if ($functions) {
-    echo '<h2 id="functions">functions</h2>';
-    print_table($functions);
-} else {
-    $name = '';
-}
-
-$level = trim(CACHEPREFIX, '_').'.optimization_level';
-if (isset($configuration['directives'][$level])) {
-    echo '<h2 id="optimization">optimization levels</h2>';
-    $levelset = strrev(base_convert($configuration['directives'][$level], 10, 2));
-    $levels = array(
-        1 => '<a href="http://wikipedia.org/wiki/Common_subexpression_elimination">Constants subexpressions elimination</a> (CSE) true, false, null, etc.<br />Optimize series of ADD_STRING / ADD_CHAR<br />Convert CAST(IS_BOOL,x) into BOOL(x)<br />Convert <a href="http://www.php.net/manual/internals2.opcodes.init-fcall-by-name.php">INIT_FCALL_BY_NAME</a> + <a href="http://www.php.net/manual/internals2.opcodes.do-fcall-by-name.php">DO_FCALL_BY_NAME</a> into <a href="http://www.php.net/manual/internals2.opcodes.do-fcall.php">DO_FCALL</a>',
-        2 => 'Convert constant operands to expected types<br />Convert conditional <a href="http://php.net/manual/internals2.opcodes.jmp.php">JMP</a>  with constant operands<br />Optimize static <a href="http://php.net/manual/internals2.opcodes.brk.php">BRK</a> and <a href="<a href="http://php.net/manual/internals2.opcodes.cont.php">CONT</a>',
-        3 => 'Convert $a = $a + expr into $a += expr<br />Convert $a++ into ++$a<br />Optimize series of <a href="http://php.net/manual/internals2.opcodes.jmp.php">JMP</a>',
-        4 => 'PRINT and ECHO optimization (<a href="https://github.com/zend-dev/ZendOptimizerPlus/issues/73">defunct</a>)',
-    5 => 'Block Optimization - most expensive pass<br />Performs many different optimization patterns based on <a href="http://wikipedia.org/wiki/Control_flow_graph">control flow graph</a> (CFG)',
-    9 => 'Optimize <a href="http://wikipedia.org/wiki/Register_allocation">register allocation</a> (allows re-usage of temporary variables)',
-    10 => 'Remove NOPs'
-    );
-    echo '<table width="600" border="0" cellpadding="3"><tbody><tr class="h"><th>Pass</th><th>Description</th></tr>';
-    foreach ($levels as $pass => $description) {
-        $disabled = substr($levelset, $pass - 1, 1) !== '1' || $pass == 4 ? ' white':'';
-        echo '<tr><td class="v center middle'.$disabled.'">'.$pass.'</td><td class="v'.$disabled.'">'.$description.'</td></tr>';
-    }
-    echo '</table>';
-}
-
-if (isset($_GET['DUMP'])) {
-    if ($name) {
-        echo '<h2 id="ini">ini</h2>';
-        print_table(ini_get_all($name, true));
-    }
-    foreach ($configuration as $key => $value) {
-        echo '<h2>',$key,'</h2>';
-        print_table($configuration[$key]);
-    }
-    exit;
-}
-
-meta_display();
-
-echo '</div></body></html>';
-
-exit;
-
-function time_since($time, $original, $extended = 0, $text = 'ago')
+class OpCacheService
 {
-    $time = $time - $original;
-    $day = $extended? floor($time / 86400) : round($time / 86400, 0);
-    $amount = 0;
-    $unit = '';
-    if ($time < 86400) {
-        if ($time < 60) {
-            $amount = $time;
-            $unit = 'second';
-        } elseif ($time < 3600) {
-            $amount = floor($time / 60);
-            $unit = 'minute';
-        } else {
-            $amount = floor($time / 3600);
-            $unit = 'hour';
-        }
-    } elseif ($day < 14) {
-        $amount = $day;
-        $unit = 'day';
-    } elseif ($day < 56) {
-        $amount = floor($day / 7);
-        $unit = 'week';
-    } elseif ($day < 672) {
-        $amount = floor($day / 30);
-        $unit = 'month';
-    } else {
-        $amount = intval(2 * ($day / 365)) / 2;
-        $unit = 'year';
-    }
-    
-    if ($amount != 1) {
-        $unit .= 's';
-    }
-    if ($extended && $time > 60) {
-        $text = ' and '.time_since($time, $time < 86400?($time < 3600?$amount * 60:$amount * 3600):$day * 86400, 0, '').$text;
-    }
-    
-    return $amount.' '.$unit.' '.$text;
-}
+    protected $data;
+    protected $options;
+    protected $defaults = [
+        'allow_filelist' => true,
+        'allow_invalidate' => true,
+        'allow_reset' => true,
+        'allow_realtime' => true,
+        'refresh_time' => 5,
+        'size_precision' => 2,
+        'size_space' => false,
+        'charts' => true,
+        'debounce_rate' => 250,
+        'cookie_name' => 'opcachegui',
+        'cookie_ttl' => 365
+    ];
 
-function print_table($array, $headers = false)
-{
-    if (empty($array) || !is_array($array)) {
-        return;
+    private function __construct($options = [])
+    {
+        $this->options = array_merge($this->defaults, $options);
+        $this->data = $this->compileState();
     }
-    echo '<table border="0" cellpadding="3" width="600">';
-    if (!empty($headers)) {
-        if (!is_array($headers)) {
-            $headers = array_keys(reset($array));
-        }
-        echo '<tr class="h">';
-        foreach ($headers as $value) {
-            echo '<th>',$value,'</th>';
-        }
-        echo '</tr>';
-    }
-    foreach ($array as $key => $value) {
-        echo '<tr>';
-        if (!is_numeric($key)) {
-            $key = ucwords(str_replace('_', ' ', $key));
-            echo '<td class="e">',$key,'</td>';
-            if (is_numeric($value)) {
-                if ($value > 1048576) {
-                    $value = round($value / 1048576, 1).'M';
-                } elseif (is_float($value)) {
-                    $value = round($value, 1);
-                }
-            }
-        }
-        if (is_array($value)) {
-            foreach ($value as $column) {
-                echo '<td class="v">',$column,'</td>';
-            }
-            echo '</tr>';
-        } else {
-            echo '<td class="v">',$value,'</td></tr>';
-        }
-    }
-    echo '</table>';
-}
 
-function files_display()
-{
-    $status = call_user_func(CACHEPREFIX.'get_status');
-    if (empty($status['scripts'])) {
-        return;
-    }
-    if (isset($_GET['DUMP'])) {
-        print_table($status['scripts']);
-        exit;
-    }
-    $time = time();
-    $sort = 0;
-    $nogroup = preg_replace('/\&?GROUP\=[\-0-9]+/', '', $_SERVER['REQUEST_URI']);
-    $nosort = preg_replace('/\&?SORT\=[\-0-9]+/', '', $_SERVER['REQUEST_URI']);
-    $group = empty($_GET['GROUP'])?0:intval($_GET['GROUP']);
-    if ($group < 0 || $group > 9) {
-        $group = 1;
-    }
-    $groupset = array_fill(0, 9, '');
-    $groupset[$group] = ' class="b" ';
-    
-    echo '<div class="meta">	
-		<a ',$groupset[0],'href="',$nogroup,'">ungroup</a> | 
-		<a ',$groupset[1],'href="',$nogroup,'&GROUP=1">1</a> | 
-		<a ',$groupset[2],'href="',$nogroup,'&GROUP=2">2</a> | 
-		<a ',$groupset[3],'href="',$nogroup,'&GROUP=3">3</a> | 
-		<a ',$groupset[4],'href="',$nogroup,'&GROUP=4">4</a> | 
-		<a ',$groupset[5],'href="',$nogroup,'&GROUP=5">5</a> 
-	</div>';
-        
-    if (!$group) {
-        $files = & $status['scripts'];
-    } else {
-        $files = array();
-        foreach ($status['scripts'] as $data) {
-            if (preg_match('@^[/]([^/]+[/]){'.$group.'}@', $data['full_path'], $path)) {
-                if (empty($files[$path[0]])) {
-                    $files[$path[0]] = array('full_path' => '','files' => 0,'hits' => 0,'memory_consumption' => 0,'last_used_timestamp' => '','timestamp' => '');
-                }
-                $files[$path[0]]['full_path'] = $path[0];
-                $files[$path[0]]['files']++;
-                $files[$path[0]]['memory_consumption'] += $data['memory_consumption'];
-                $files[$path[0]]['hits'] += $data['hits'];
-                if ($data['last_used_timestamp'] > $files[$path[0]]['last_used_timestamp']) {
-                    $files[$path[0]]['last_used_timestamp'] = $data['last_used_timestamp'];
-                }
-                if ($data['timestamp'] > $files[$path[0]]['timestamp']) {
-                    $files[$path[0]]['timestamp'] = $data['timestamp'];
-                }
+    public static function init($options = [])
+    {
+        $self = new self($options);
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+            && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest'
+        ) {
+            if (isset($_GET['reset']) && $self->getOption('allow_reset')) {
+                echo '{ "success": "' . ($self->resetCache() ? 'yes' : 'no') . '" }';
+            } elseif (isset($_GET['invalidate']) && $self->getOption('allow_invalidate')) {
+                echo '{ "success": "' . ($self->resetCache($_GET['invalidate']) ? 'yes' : 'no') . '" }';
+            } else {
+                echo json_encode($self->getData((empty($_GET['section']) ? null : $_GET['section'])));
             }
+            exit;
+        } elseif (isset($_GET['reset']) && $self->getOption('allow_reset')) {
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+            $self->resetCache();
+
+            Core::get('admin')->add_notice('PHP Opcache cache reset.', 'admin', 'SUCCESS');
+
+            die('<script>document.location.replace(\''.add_query_arg(array( 'page' => 'o10n-filecache', 'tab' => 'opcache' ), admin_url($options['admin_base'])).'\');</script>');
+        } elseif (isset($_GET['invalidate']) && $self->getOption('allow_invalidate')) {
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+            $self->resetCache($_GET['invalidate']);
+
+            Core::get('admin')->add_notice('PHP Opcache cache invalidated for file <code>'.esc_html($_GET['invalidate']).'</code>.', 'admin', 'SUCCESS');
+
+            
+            die('<script>document.location.replace(\''.add_query_arg(array( 'page' => 'o10n-filecache', 'tab' => 'opcache' ), admin_url($options['admin_base'])).'\');</script>');
         }
+
+        return $self;
     }
-        
-    if (!empty($_GET['SORT'])) {
-        $keys = array(
-            'full_path' => SORT_STRING,
-            'files' => SORT_NUMERIC,
-            'memory_consumption' => SORT_NUMERIC,
-            'hits' => SORT_NUMERIC,
-            'last_used_timestamp' => SORT_NUMERIC,
-            'timestamp' => SORT_NUMERIC
+
+    public function getOption($name = null)
+    {
+        if ($name === null) {
+            return $this->options;
+        }
+
+        return (isset($this->options[$name])
+            ? $this->options[$name]
+            : null
         );
-        $titles = array('','path',$group?'files':'','size','hits','last used','created');
-        $offsets = array_keys($keys);
-        $key = intval($_GET['SORT']);
-        $direction = $key > 0?1:-1;
-        $key = abs($key) - 1;
-        $key = isset($offsets[$key]) && !($key == 1 && empty($group))?$offsets[$key]:reset($offsets);
-        $sort = array_search($key, $offsets) + 1;
-        $sortflip = range(0, 7);
-        $sortflip[$sort] = -$direction * $sort;
-        if ($keys[$key] == SORT_STRING) {
-            $direction = -$direction;
-        }
-        $arrow = array_fill(0, 7, '');
-        $arrow[$sort] = $direction > 0?' &#x25BC;':' &#x25B2;';
-        $direction = $direction > 0?SORT_DESC:SORT_ASC;
-        $column = array();
-        foreach ($files as $data) {
-            $column[] = $data[$key];
-        }
-        array_multisort($column, $keys[$key], $direction, $files);
     }
 
-    echo '<table border="0" cellpadding="3" width="960" id="files">
-         		<tr class="h">';
-    foreach ($titles as $column => $title) {
-        if ($title) {
-            echo '<th><a href="',$nosort,'&SORT=',$sortflip[$column],'">',$title,$arrow[$column],'</a></th>';
+    public function getData($section = null, $property = null)
+    {
+        if ($section === null) {
+            return $this->data;
         }
-    }
-    echo '	</tr>';
-    foreach ($files as $data) {
-        echo '<tr>
-    				<td class="v" nowrap><a title="recheck" href="?RECHECK=',rawurlencode($data['full_path']),'">x</a>',$data['full_path'],'</td>',
-                      ($group?'<td class="vr">'.number_format($data['files']).'</td>':''),
-                     '<td class="vr">',number_format(round($data['memory_consumption'] / 1024)),'K</td>',
-                     '<td class="vr">',number_format($data['hits']),'</td>',
-                     '<td class="vr">',time_since($time, $data['last_used_timestamp']),'</td>',
-                     '<td class="vr">',empty($data['timestamp'])?'':time_since($time, $data['timestamp']),'</td>
-         		</tr>';
-    }
-    echo '</table>';
-}
-
-function graphs_display()
-{
-    $graphs = array();
-    $colors = array('green','brown','red');
-    $primes = array(223, 463, 983, 1979, 3907, 7963, 16229, 32531, 65407, 130987);
-    $configuration = call_user_func(CACHEPREFIX.'get_configuration');
-    $status = call_user_func(CACHEPREFIX.'get_status');
-
-    $graphs['memory']['total'] = $configuration['directives']['opcache.memory_consumption'];
-    $graphs['memory']['free'] = $status['memory_usage']['free_memory'];
-    $graphs['memory']['used'] = $status['memory_usage']['used_memory'];
-    $graphs['memory']['wasted'] = $status['memory_usage']['wasted_memory'];
-
-    $graphs['keys']['total'] = $status[CACHEPREFIX.'statistics']['max_cached_keys'];
-    foreach ($primes as $prime) {
-        if ($prime >= $graphs['keys']['total']) {
-            $graphs['keys']['total'] = $prime;
-            break;
-        }
-    }
-    $graphs['keys']['free'] = $graphs['keys']['total'] - $status[CACHEPREFIX.'statistics']['num_cached_keys'];
-    $graphs['keys']['scripts'] = $status[CACHEPREFIX.'statistics']['num_cached_scripts'];
-    $graphs['keys']['wasted'] = $status[CACHEPREFIX.'statistics']['num_cached_keys'] - $status[CACHEPREFIX.'statistics']['num_cached_scripts'];
-
-    $graphs['hits']['total'] = 0;
-    $graphs['hits']['hits'] = $status[CACHEPREFIX.'statistics']['hits'];
-    $graphs['hits']['misses'] = $status[CACHEPREFIX.'statistics']['misses'];
-    $graphs['hits']['blacklist'] = $status[CACHEPREFIX.'statistics']['blacklist_misses'];
-    $graphs['hits']['total'] = array_sum($graphs['hits']);
-
-    $graphs['restarts']['total'] = 0;
-    $graphs['restarts']['manual'] = $status[CACHEPREFIX.'statistics']['manual_restarts'];
-    $graphs['restarts']['keys'] = $status[CACHEPREFIX.'statistics']['hash_restarts'];
-    $graphs['restarts']['memory'] = $status[CACHEPREFIX.'statistics']['oom_restarts'];
-    $graphs['restarts']['total'] = array_sum($graphs['restarts']);
-
-    foreach ($graphs as $caption => $graph) {
-        echo '<div class="graph"><div class="h">',$caption,'</div><table border="0" cellpadding="0" cellspacing="0">';
-        foreach ($graph as $label => $value) {
-            if ($label == 'total') {
-                $key = 0;
-                $total = $value;
-                $totaldisplay = '<td rowspan="3" class="total"><span>'.($total > 999999?round($total / 1024 / 1024).'M':($total > 9999?round($total / 1024).'K':$total)).'</span><div></div></td>';
-                continue;
+        $section = strtolower($section);
+        if (isset($this->data[$section])) {
+            if ($property === null || !isset($this->data[$section][$property])) {
+                return $this->data[$section];
             }
-            $percent = $total?floor($value * 100 / $total):'';
-            $percent = !$percent || $percent > 99?'':$percent.'%';
-            echo '<tr>',$totaldisplay,'<td class="actual">', ($value > 999999?round($value / 1024 / 1024).'M':($value > 9999?round($value / 1024).'K':$value)),'</td><td class="bar ',$colors[$key],'" height="',$percent,'">',$percent,'</td><td>',$label,'</td></tr>';
-            $key++;
-            $totaldisplay = '';
+
+            return $this->data[$section][$property];
         }
-        echo '</table></div>',"\n";
+
+        return null;
+    }
+
+    public function canInvalidate()
+    {
+        return ($this->getOption('allow_invalidate') && function_exists('opcache_invalidate'));
+    }
+
+    public function resetCache($file = null)
+    {
+        $success = false;
+        if ($file === null) {
+            $success = opcache_reset();
+        } elseif (function_exists('opcache_invalidate')) {
+            $success = opcache_invalidate(urldecode($file), true);
+        }
+        if ($success) {
+            $this->compileState();
+        }
+
+        return $success;
+    }
+
+    protected function size($size)
+    {
+        $i = 0;
+        $val = array('b', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB');
+        while (($size / 1024) > 1) {
+            $size /= 1024;
+            ++$i;
+        }
+
+        return sprintf(
+            '%.'.$this->getOption('size_precision').'f%s%s',
+            $size,
+            ($this->getOption('size_space') ? ' ' : ''),
+            $val[$i]
+        );
+    }
+
+    protected function compileState()
+    {
+        $status = opcache_get_status();
+        $config = opcache_get_configuration();
+
+        $files = [];
+        if (!empty($status['scripts']) && $this->getOption('allow_filelist')) {
+            uasort($status['scripts'], function ($a, $b) {
+                return $a['hits'] < $b['hits'];
+            });
+            foreach ($status['scripts'] as &$file) {
+                $file['full_path'] = str_replace('\\', '/', $file['full_path']);
+                $file['readable'] = [
+                    'hits' => number_format($file['hits']),
+                    'memory_consumption' => $this->size($file['memory_consumption'])
+                ];
+            }
+            $files = array_values($status['scripts']);
+        }
+
+        $overview = array_merge(
+            $status['memory_usage'],
+            $status['opcache_statistics'],
+            [
+                'used_memory_percentage' => round(100 * (
+                        ($status['memory_usage']['used_memory'] + $status['memory_usage']['wasted_memory'])
+                        / $config['directives']['opcache.memory_consumption']
+                )),
+                'hit_rate_percentage' => round($status['opcache_statistics']['opcache_hit_rate']),
+                'wasted_percentage' => round($status['memory_usage']['current_wasted_percentage'], 2),
+                'readable' => [
+                    'total_memory' => $this->size($config['directives']['opcache.memory_consumption']),
+                    'used_memory' => $this->size($status['memory_usage']['used_memory']),
+                    'free_memory' => $this->size($status['memory_usage']['free_memory']),
+                    'wasted_memory' => $this->size($status['memory_usage']['wasted_memory']),
+                    'num_cached_scripts' => number_format($status['opcache_statistics']['num_cached_scripts']),
+                    'hits' => number_format($status['opcache_statistics']['hits']),
+                    'misses' => number_format($status['opcache_statistics']['misses']),
+                    'blacklist_miss' => number_format($status['opcache_statistics']['blacklist_misses']),
+                    'num_cached_keys' => number_format($status['opcache_statistics']['num_cached_keys']),
+                    'max_cached_keys' => number_format($status['opcache_statistics']['max_cached_keys']),
+                    'interned' => null,
+                    'start_time' => date('Y-m-d H:i:s', $status['opcache_statistics']['start_time']),
+                    'last_restart_time' => (
+                        $status['opcache_statistics']['last_restart_time'] == 0
+                            ? 'never'
+                            : date('Y-m-d H:i:s', $status['opcache_statistics']['last_restart_time'])
+                        )
+                ]
+            ]
+        );
+
+        if (!empty($status['interned_strings_usage'])) {
+            $overview['readable']['interned'] = [
+                'buffer_size' => $this->size($status['interned_strings_usage']['buffer_size']),
+                'strings_used_memory' => $this->size($status['interned_strings_usage']['used_memory']),
+                'strings_free_memory' => $this->size($status['interned_strings_usage']['free_memory']),
+                'number_of_strings' => number_format($status['interned_strings_usage']['number_of_strings'])
+            ];
+        }
+
+        $directives = [];
+        ksort($config['directives']);
+        foreach ($config['directives'] as $k => $v) {
+            $directives[] = ['k' => $k, 'v' => $v];
+        }
+
+        $version = array_merge(
+            $config['version'],
+            [
+                'php' => phpversion(),
+                'server' => empty($_SERVER['SERVER_SOFTWARE']) ? '' : $_SERVER['SERVER_SOFTWARE'],
+                'host' => (
+                    function_exists('gethostname')
+                    ? gethostname()
+                    : (
+                        php_uname('n')
+                        ?: (
+                            empty($_SERVER['SERVER_NAME'])
+                            ? $_SERVER['HOST_NAME']
+                            : $_SERVER['SERVER_NAME']
+                        )
+                    )
+                )
+            ]
+        );
+
+        return [
+            'version' => $version,
+            'overview' => $overview,
+            'files' => $files,
+            'directives' => $directives,
+            'blacklist' => $config['blacklist'],
+            'functions' => get_extension_funcs('Zend OPcache')
+        ];
     }
 }
-
-function meta_display()
-{
-    ?>
-<div class="meta">
-	<a href="http://files.zend.com/help/Zend-Server-6/content/zendoptimizerplus.html">directives guide</a> | 
-	<a href="http://files.zend.com/help/Zend-Server-6/content/zend_optimizer+_-_php_api.htm">functions guide</a> | 
-	<a href="https://wiki.php.net/rfc/optimizerplus">wiki.php.net</a> |
-	<a href="http://pecl.php.net/package/ZendOpcache">pecl</a> | 
-	<a href="https://github.com/zend-dev/ZendOptimizerPlus/">Zend source</a> | 		
-	<a href="https://gist.github.com/ck-on/4959032/?ocp.php">OCP latest</a>
-</div>
-<?php
-}
-
-$module_name = $view->module->name();
-$module_version = $view->module->version();
 
 ?>
+    <style type="text/css">
+        body { font-family:sans-serif; font-size:90%; padding: 0; margin: 0 }
+        
+        table { margin: 0 0 1em 0; border-collapse: collapse; border-color: #fff; width: 100%; table-layout: fixed; }
+        table caption { text-align: left; font-size: 1.5em; }
+        table tr { background-color: #99D0DF; border-color: #fff; }
+        table th { text-align: left; padding: 6px; background-color: #079c2d; color: #fff; border-color: #fff; font-weight: normal; }
+        table td { padding: 4px 6px; line-height: 1.4em; vertical-align: top; border-color: #fff; overflow: hidden; overflow-wrap: break-word; text-overflow: ellipsis;}
+        table tr:nth-child(odd) { background-color: transparent; }
+        table tr:nth-child(even) { background-color: #e5e5e5; }
+        #filelist table tr { background-color: transparent; }
+        #filelist table tr.alternate { background-color: #e5e5e5; }
+        td.pathname { width: 70%; }
+        footer { border-top: 1px solid #ccc; padding: 1em 2em; }
+        footer a { padding: 2em; text-decoration: none; opacity: 0.7; }
+        footer a:hover { opacity: 1; }
+        canvas { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+        #tabs {  }
+        #tabs > div { display: none; }
+        #tabs > div#overview { display:block; }
+        #resetCache, #toggleRealtime, footer > a { background-position: 5px 50%; background-repeat: no-repeat; background-color: transparent; }
+
+  
+        #counts { width: 270px; float: right; }
+        #counts > div > div { background-color: #ededed; margin-bottom: 10px; }
+        #counts > div > div > h3 { background-color: #e5e5e5; padding: 4px 6px; margin: 0; text-align: center; }
+        #counts > div > div > p { margin: 0; text-align: center; }
+        #counts > div > div > p span.large + span { font-size: 20pt; margin: 0; color: #079c2d; }
+        #counts > div > div > p span.large { color: #079c2d; font-size: 80pt; margin: 0; padding: 0; text-align: center; }
+        #info { margin-right: 280px; }
+        #frmFilter { width: 520px; }
+        .moreinfo > div { padding: 10px; }
+        .moreinfo > div > p { margin: 0; line-height: 1.75em; }
+        .metainfo { font-size: 80%; }
+        .hide { display: none; }
+        #toggleRealtime.pulse::before {
+            content: ""; position: absolute;
+            top: 13px; left: 3px; width: 18px; height: 18px;
+            z-index: 10; opacity: 0; background-color: transparent;
+            border: 2px solid rgb(255, 116, 0); border-radius: 100%;
+            -webkit-animation: pulse 1s linear 2;
+            -moz-animation: pulse 1s linear 2;
+            animation: pulse 1s linear 2;
+        }
+        @media screen and (max-width: 750px) {
+            #info { margin-right:auto; clear:both; }
+            nav > ul { border-bottom: 0; }
+            nav > ul > li { display: block; margin: 0; }
+            nav > ul > li > a { display: block; margin: 0 10px; padding: 10px 0 10px 30px; border: 0; }
+            nav > ul > li > a[data-for].active { border-bottom-color: #ccc; }
+            #counts { position:relative; display:block; width:100%; }
+            #toggleRealtime.pulse::before { top: 8px; }
+        }
+        @media screen and (max-width: 550px) {
+            #frmFilter { width: 100%; }
+        }
+        @keyframes pulse {
+            0% {transform: scale(1); opacity: 0;}
+            50% {transform: scale(1.3); opacity: 0.7;}
+            100% {transform: scale(1.6); opacity: 1;}
+        }
+        @-webkit-keyframes pulse {
+            0% {-webkit-transform: scale(1); opacity: 0;}
+            50% {-webkit-transform: scale(1.3); opacity: 0.7;}
+            100% {-webkit-transform: scale(1.6); opacity: 0;}
+        }
+        @-moz-keyframes pulse {
+            0% {-moz-transform: scale(1); opacity: 0;}
+            50% {-moz-transform: scale(1.3); opacity: 0.7;}
+            100% {-moz-transform: scale(1.6); opacity: 0;}
+        }
+
+
+p.poweredby {
+    margin: 0;
+    padding: 0;
+    font-style: italic;
+    font-size: 14px;
+    line-height: 22px;
+    color: #666;
+    display:inline-block;
+    margin:0 auto;
+}
+
+p.poweredby .star {
+    display: inline-block;
+    float: right;
+    margin-left: 7px;
+    line-height: 0
+}
+
+p.poweredby .star a {
+    color: transparent;
+    font-size: 1px
+}
+
+    </style>
+
+    <script src="//cdn.jsdelivr.net/react/15.4.2/react.min.js"></script>
+    <script src="//cdn.jsdelivr.net/react/15.4.2/react-dom.min.js"></script>
+    <script src="//cdn.jsdelivr.net/jquery/3.1.1/jquery.min.js"></script>
+
+
+
+
+
+<?php
+
+/*
+ * Shouldn't need to alter anything else below here
+ */
+
+if (!function_exists('opcache_reset')) {
+    print '<a href="http://php.net/manual/en/book.opcache.php" target="_blank">PHP/Zend OPcache</a> extension is not installed.';
+} else {
+    $ocEnabled = ini_get('opcache.enable');
+    if (empty($ocEnabled)) {
+        print '<a href="http://php.net/manual/en/book.opcache.php" target="_blank">PHP/Zend OPcache</a> extension is installed but not enabled in PHP.ini';
+    } else {
+        $opcache = OpCacheService::init($options); ?>
+
 <div class="wrap">
 
-	<div class="metabox-prefs">
-		<div class="wrap about-wrap" style="position:relative;">
-			<div style="float:right;">
-				<img src="<?php print $view->module->dir_url(); ?>admin/images/pagespeed.png" alt="File Page Cache" width="180" height="180" border="0" style="float:right;">
-			</div>
-			<h1><?php print $module_name; ?> <?php print $module_version; ?></h1>
+    <div class="metabox-prefs">
+        <div class="wrap about-wrap" style="position:relative;">
 
-			<p class="about-text" style="min-height:inherit;">Thank you for using the <?php print $module_name; ?> plugin by <a href="https://github.com/o10n-x/" target="_blank" rel="noopener" style="color:black;text-decoration:none;">Optimization.Team</a></p>
-			
-			<p class="about-text" style="min-height:inherit;">This plugin is a file page cache for WordPress.</p>
+<div id="tabs">
+    <div id="overview">
+        <div class="container">
+            <div id="counts"></div>
+            <div id="info">
+                <div id="generalInfo"></div>
+                <div id="directives"></div>
+                <div id="functions">
+                    <table>
+                        <thead>
+                            <tr><th>Available functions</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($opcache->getData('functions') as $func): ?>
+                            <tr><td><a href="http://php.net/<?php echo $func; ?>" title="View manual page" target="_blank"><?php echo $func; ?></a></td></tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <br style="clear:both;" />
+            </div>
+        </div>
+    </div>
+    <div id="files">
+        <?php if ($opcache->getOption('allow_filelist')): ?>
+        <form action="#">
+            <label for="frmFilter">Start typing to filter on script path</label><br>
+            <input type="text" name="filter" id="frmFilter">
+        </form>
+        <?php endif; ?>
+        <div class="container" id="filelist"></div>
+    </div>
+</div>
+<p class="poweredby">Powered by <a href="https://github.com/amnuts/opcache-gui" target="_blank">opcache-gui</a><span class="star"><a class="github-button" data-manual="1" href="https://github.com/amnuts/opcache-gui" data-icon="octicon-star" data-show-count="true" aria-label="Star amnuts/opcache-gui on GitHub">Star</a></span></p>
+<script type="text/javascript">
+    var realtime = false;
+    var opstate = <?php echo json_encode($opcache->getData()); ?>;
+    var canInvalidate = <?php echo json_encode($opcache->canInvalidate()); ?>;
+    var useCharts = <?php echo json_encode($opcache->getOption('charts')); ?>;
+    var allowFiles = <?php echo json_encode($opcache->getOption('allow_filelist')); ?>;
+    var debounce = function(func, wait, immediate) {
+        var timeout;
+        wait = wait || 250;
+        return function() {
+            var context = this, args = arguments;
+            var later = function() {
+                timeout = null;
+                if (!immediate) {
+                    func.apply(context, args);
+                }
+            };
+            var callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) {
+                func.apply(context, args);
+            }
+        };
+    };
+    function keyUp(event){
+        var compare = $('#frmFilter').val().toLowerCase();
+        $('#filelist').find('table tbody tr').each(function(index){
+            if ($(this).data('path').indexOf(compare) == -1) {
+                $(this).addClass('hide');
+            } else {
+                $(this).removeClass('hide');
+            }
+        });
+        $('#filelist table tbody').trigger('paint');
+    };
+    <?php if ($opcache->getOption('charts')): ?>
+    var Gauge = function(el, colour) {
+        this.canvas  = $(el).get(0);
+        this.ctx     = this.canvas.getContext('2d');
+        this.width   = this.canvas.width;
+        this.height  = this.canvas.height;
+        this.colour  = colour || '#079c2d';
+        this.loop    = null;
+        this.degrees = 0;
+        this.newdegs = 0;
+        this.text    = '';
+        this.init = function() {
+            this.ctx.clearRect(0, 0, this.width, this.height);
+            this.ctx.beginPath();
+            this.ctx.strokeStyle = '#e2e2e2';
+            this.ctx.lineWidth = 30;
+            this.ctx.arc(this.width/2, this.height/2, 100, 0, Math.PI*2, false);
+            this.ctx.stroke();
+            this.ctx.beginPath();
+            this.ctx.strokeStyle = this.colour;
+            this.ctx.lineWidth = 30;
+            this.ctx.arc(this.width/2, this.height/2, 100, 0 - (90 * Math.PI / 180), (this.degrees * Math.PI / 180) - (90 * Math.PI / 180), false);
+            this.ctx.stroke();
+            this.ctx.fillStyle = this.colour;
+            this.ctx.font = '60px sans-serif';
+            this.text = Math.round((this.degrees/360)*100) + '%';
+            this.ctx.fillText(this.text, (this.width/2) - (this.ctx.measureText(this.text).width/2), (this.height/2) + 20);
+        };
+        this.draw = function() {
+            if (typeof this.loop != 'undefined') {
+                clearInterval(this.loop);
+            }
+            var self = this;
+            self.loop = setInterval(function(){ self.animate(); }, 1000/(this.newdegs - this.degrees));
+        };
+        this.animate = function() {
+            if (this.degrees == this.newdegs) {
+                clearInterval(this.loop);
+            }
+            if (this.degrees < this.newdegs) {
+                ++this.degrees;
+            } else {
+                --this.degrees;
+            }
+            this.init();
+        };
+        this.setValue = function(val) {
+            this.newdegs = Math.round(3.6 * val);
+            this.draw();
+        };
+    }
+    <?php endif; ?>
 
-			<p class="about-text" style="min-height:inherit;">The plugin provides a PHP Opcache based boost function for a <a href="https://medium.com/@Gu55/love-the-blazing-speed-b9a90a70c192" target="_blank">500x faster than Redis and Memcached</a> memory cache.</p>
+    $(function(){
+        <?php if ($opcache->getOption('allow_realtime')): ?>
+        function setCookie() {
+            var d = new Date();
+            var secure = (window.location.protocol === 'https:' ? ';secure' : '');
+            d.setTime(d.getTime() + (<?php echo($opcache->getOption('cookie_ttl')); ?> * 86400000));
+            var expires = "expires="+d.toUTCString();
+            document.cookie = "<?php echo($opcache->getOption('cookie_name')); ?>=true;" + expires + ";path=/" + secure;
+        };
+        function removeCookie() {
+            var secure = (window.location.protocol === 'https:' ? ';secure' : '');
+            document.cookie = "<?php echo($opcache->getOption('cookie_name')); ?>=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/" + secure;
+        };
+        function getCookie() {
+            var v = document.cookie.match('(^|;) ?<?php echo($opcache->getOption('cookie_name')); ?>=([^;]*)(;|$)');
+            return v ? v[2] : null;
+        };
+        function updateStatus() {
+            $('#toggleRealtime').removeClass('pulse');
+            $.ajax({
+                url: "#",
+                dataType: "json",
+                cache: false,
+                success: function(data) {
+                    $('#toggleRealtime').addClass('pulse');
+                    opstate = data;
+                    overviewCountsObj.setState({
+                        data : opstate.overview
+                    });
+                    generalInfoObj.setState({
+                        version : opstate.version,
+                        start : opstate.overview.readable.start_time,
+                        reset : opstate.overview.readable.last_restart_time
+                    });
+                    filesObj.setState({
+                        data : opstate.files,
+                        count_formatted : opstate.overview.readable.num_cached_scripts,
+                        count : opstate.overview.num_cached_scripts
+                    });
+                    keyUp();
+                }
+            });
+        }
+        $('#toggleRealtime').click(function(){
+            if (realtime === false) {
+                realtime = setInterval(function(){updateStatus()}, <?php echo (int)$opcache->getOption('refresh_time') * 1000; ?>);
+                $(this).text('Disable real-time update');
+                setCookie();
+            } else {
+                clearInterval(realtime);
+                realtime = false;
+                $(this).text('Enable real-time update').removeClass('pulse');
+                removeCookie();
+            }
+        });
+        if (getCookie() == 'true') {
+            realtime = setInterval(function(){updateStatus()}, <?php echo (int)$opcache->getOption('refresh_time') * 1000; ?>);
+            $('#toggleRealtime').text('Disable real-time update');
+        }
+        <?php endif; ?>
+        $('nav a[data-for]').click(function(){
+            $('#tabs > div').hide();
+            $('#' + $(this).data('for')).show();
+            $('nav a[data-for]').removeClass('active');
+            $(this).addClass('active');
+            return false;
+        });
+        $(document).on('paint', '#filelist table tbody', function(event, params) {
+            var trs = $('#filelist').find('tbody tr');
+            trs.removeClass('alternate');
+            trs.filter(':not(.hide):odd').addClass('alternate');
+            filesObj.setState({showing: trs.filter(':not(.hide)').length});
+        });
+        $('#frmFilter').bind('keyup', debounce(keyUp, <?php echo $opcache->getOption('debounce_rate'); ?>));
+    });
 
-			
+    var MemoryUsageGraph = React.createClass({
+        getInitialState: function () {
+            return {
+                memoryUsageGauge: null
+            };
+        },
+        componentDidMount: function () {
+            if (this.props.chart) {
+                this.state.memoryUsageGauge = new Gauge('#memoryUsageCanvas');
+                this.state.memoryUsageGauge.setValue(this.props.value);
+            }
+        },
+        componentDidUpdate: function () {
+            if (this.state.memoryUsageGauge != null) {
+                this.state.memoryUsageGauge.setValue(this.props.value);
+            }
+        },
+        render: function () {
+            if (this.props.chart == true) {
+                return React.createElement("canvas", { id: "memoryUsageCanvas", width: "250", height: "250", "data-value": this.props.value });
+            }
+            return React.createElement(
+                "p",
+                null,
+                React.createElement(
+                    "span",
+                    { className: "large" },
+                    this.props.value
+                ),
+                React.createElement(
+                    "span",
+                    null,
+                    "%"
+                )
+            );
+        }
+    });
 
-			<p class="about-text" style="min-height:inherit;">If you are happy with the plugin, please consider to <span class="star" style="display:inline-block;vertical-align:middle;"><a class="github-button" data-manual="1" data-size="large" href="https://github.com/o10n-x/wordpress-file-page-cache" data-icon="octicon-star" data-show-count="true" aria-label="Star o10n-x/wordpress-file-page-cache on GitHub">Star</a></span> on Github.</p>
-			
-			<hr />
+    var HitRateGraph = React.createClass({
+        getInitialState: function () {
+            return {
+                hitRateGauge: null
+            };
+        },
+        componentDidMount: function () {
+            if (this.props.chart) {
+                this.state.hitRateGauge = new Gauge('#hitRateCanvas');
+                this.state.hitRateGauge.setValue(this.props.value);
+            }
+        },
+        componentDidUpdate: function () {
+            if (this.state.hitRateGauge != null) {
+                this.state.hitRateGauge.setValue(this.props.value);
+            }
+        },
+        render: function () {
+            if (this.props.chart == true) {
+                return React.createElement("canvas", { id: "hitRateCanvas", width: "250", height: "250", "data-value": this.props.value });
+            }
+            return React.createElement(
+                "p",
+                null,
+                React.createElement(
+                    "span",
+                    { className: "large" },
+                    this.props.value
+                ),
+                React.createElement(
+                    "span",
+                    null,
+                    "%"
+                )
+            );
+        }
+    });
 
-			<h3>WordPress WPO Collection</h3>
+    var MemoryUsagePanel = React.createClass({
+        render: function () {
+            return React.createElement(
+                "div",
+                { className: "moreinfo" },
+                React.createElement(
+                    "h3",
+                    null,
+                    "memory usage"
+                ),
+                React.createElement(
+                    "div",
+                    null,
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "total memory:"
+                        ),
+                        " ",
+                        this.props.total
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "used memory:"
+                        ),
+                        " ",
+                        this.props.used
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "free memory:"
+                        ),
+                        " ",
+                        this.props.free
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "wasted memory:"
+                        ),
+                        " ",
+                        this.props.wasted,
+                        " (",
+                        this.props.wastedPercent,
+                        "%)"
+                    )
+                )
+            );
+        }
+    });
 
-			<img src="<?php print O10N_CORE_URI; ?>admin/images/google-lighthouse.png" alt="Google Lighthouse" height="50" border="0">
-			
-			<p class="about-text" style="min-height:inherit;">This plugin is part of a <a href="https://github.com/o10n-x/" target="_blank">WPO plugin collection</a> that is designed to achieve perfect <a href="https://developers.google.com/web/tools/lighthouse/" target="_blank">Google Lighthouse</a> scores.</p>
-			
+    var StatisticsPanel = React.createClass({
+        render: function () {
+            return React.createElement(
+                "div",
+                { className: "moreinfo" },
+                React.createElement(
+                    "h3",
+                    null,
+                    "opcache statistics"
+                ),
+                React.createElement(
+                    "div",
+                    null,
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "number of cached files:"
+                        ),
+                        " ",
+                        this.props.num_cached_scripts
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "number of hits:"
+                        ),
+                        " ",
+                        this.props.hits
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "number of misses:"
+                        ),
+                        " ",
+                        this.props.misses
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "blacklist misses:"
+                        ),
+                        " ",
+                        this.props.blacklist_miss
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "number of cached keys:"
+                        ),
+                        " ",
+                        this.props.num_cached_keys
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "max cached keys:"
+                        ),
+                        " ",
+                        this.props.max_cached_keys
+                    )
+                )
+            );
+        }
+    });
+
+    var InternedStringsPanel = React.createClass({
+        render: function () {
+            return React.createElement(
+                "div",
+                { className: "moreinfo" },
+                React.createElement(
+                    "h3",
+                    null,
+                    "interned strings usage"
+                ),
+                React.createElement(
+                    "div",
+                    null,
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "buffer size:"
+                        ),
+                        " ",
+                        this.props.buffer_size
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "used memory:"
+                        ),
+                        " ",
+                        this.props.strings_used_memory
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "free memory:"
+                        ),
+                        " ",
+                        this.props.strings_free_memory
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(
+                            "b",
+                            null,
+                            "number of strings:"
+                        ),
+                        " ",
+                        this.props.number_of_strings
+                    )
+                )
+            );
+        }
+    });
+
+    var OverviewCounts = React.createClass({
+        getInitialState: function () {
+            return {
+                data: opstate.overview,
+                chart: useCharts
+            };
+        },
+        render: function () {
+            var interned = this.state.data.readable.interned != null ? React.createElement(InternedStringsPanel, {
+                buffer_size: this.state.data.readable.interned.buffer_size,
+                strings_used_memory: this.state.data.readable.interned.strings_used_memory,
+                strings_free_memory: this.state.data.readable.interned.strings_free_memory,
+                number_of_strings: this.state.data.readable.interned.number_of_strings
+            }) : '';
+            return React.createElement(
+                "div",
+                null,
+                React.createElement(
+                    "div",
+                    null,
+                    React.createElement(
+                        "h3",
+                        null,
+                        "memory"
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(MemoryUsageGraph, { chart: this.state.chart, value: this.state.data.used_memory_percentage })
+                    )
+                ),
+                React.createElement(
+                    "div",
+                    null,
+                    React.createElement(
+                        "h3",
+                        null,
+                        "hit rate"
+                    ),
+                    React.createElement(
+                        "p",
+                        null,
+                        React.createElement(HitRateGraph, { chart: this.state.chart, value: this.state.data.hit_rate_percentage })
+                    )
+                ),
+                React.createElement(MemoryUsagePanel, {
+                    total: this.state.data.readable.total_memory,
+                    used: this.state.data.readable.used_memory,
+                    free: this.state.data.readable.free_memory,
+                    wasted: this.state.data.readable.wasted_memory,
+                    wastedPercent: this.state.data.wasted_percentage
+                }),
+                React.createElement(StatisticsPanel, {
+                    num_cached_scripts: this.state.data.readable.num_cached_scripts,
+                    hits: this.state.data.readable.hits,
+                    misses: this.state.data.readable.misses,
+                    blacklist_miss: this.state.data.readable.blacklist_miss,
+                    num_cached_keys: this.state.data.readable.num_cached_keys,
+                    max_cached_keys: this.state.data.readable.max_cached_keys
+                }),
+                interned
+            );
+        }
+    });
+
+    var GeneralInfo = React.createClass({
+        getInitialState: function () {
+            return {
+                version: opstate.version,
+                start: opstate.overview.readable.start_time,
+                reset: opstate.overview.readable.last_restart_time
+            };
+        },
+        render: function () {
+            return React.createElement(
+                "table",
+                null,
+                React.createElement(
+                    "thead",
+                    null,
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "th",
+                            { colSpan: "2" },
+                            "General info"
+                        )
+                    )
+                ),
+                React.createElement(
+                    "tbody",
+                    null,
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "Zend OPcache"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            this.state.version.version
+                        )
+                    ),
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "PHP"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            this.state.version.php
+                        )
+                    ),
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "Host"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            this.state.version.host
+                        )
+                    ),
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "Server Software"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            this.state.version.server
+                        )
+                    ),
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "Start time"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            this.state.start
+                        )
+                    ),
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "td",
+                            null,
+                            "Last reset"
+                        ),
+                        React.createElement(
+                            "td",
+                            null,
+                            this.state.reset
+                        )
+                    )
+                )
+            );
+        }
+    });
+
+    var Directives = React.createClass({
+        getInitialState: function () {
+            return { data: opstate.directives };
+        },
+        render: function () {
+            var directiveNodes = this.state.data.map(function (directive) {
+                var map = { 'opcache.': '', '_': ' ' };
+                var dShow = directive.k.replace(/opcache\.|_/gi, function (matched) {
+                    return map[matched];
+                });
+                var vShow;
+                if (directive.v === true || directive.v === false) {
+                    vShow = React.createElement('i', {}, directive.v.toString());
+                } else if (directive.v === '') {
+                    vShow = React.createElement('i', {}, 'no value');
+                } else {
+                    vShow = directive.v;
+                }
+                return React.createElement(
+                    "tr",
+                    { key: directive.k },
+                    React.createElement(
+                        "td",
+                        { title: 'View ' + directive.k + ' manual entry' },
+                        React.createElement(
+                            "a",
+                            { href: 'http://php.net/manual/en/opcache.configuration.php#ini.' + directive.k.replace(/_/g, '-'), target: "_blank" },
+                            dShow
+                        )
+                    ),
+                    React.createElement(
+                        "td",
+                        null,
+                        vShow
+                    )
+                );
+            });
+            return React.createElement(
+                "table",
+                null,
+                React.createElement(
+                    "thead",
+                    null,
+                    React.createElement(
+                        "tr",
+                        null,
+                        React.createElement(
+                            "th",
+                            { colSpan: "2" },
+                            "Directives"
+                        )
+                    )
+                ),
+                React.createElement(
+                    "tbody",
+                    null,
+                    directiveNodes
+                )
+            );
+        }
+    });
+
+    var Files = React.createClass({
+        getInitialState: function () {
+            return {
+                data: opstate.files,
+                showing: null,
+                allowFiles: allowFiles
+            };
+        },
+        handleInvalidate: function (e) {
+            e.preventDefault();
+            if (realtime) {
+                $.get('#', { invalidate: e.currentTarget.getAttribute('data-file') }, function (data) {
+                    console.log('success: ' + data.success);
+                }, 'json');
+            } else {
+                window.location.href = e.currentTarget.href;
+            }
+        },
+        render: function () {
+            if (this.state.allowFiles) {
+                var fileNodes = this.state.data.map(function (file, i) {
+                    var invalidate, invalidated;
+                    if (file.timestamp == 0) {
+                        invalidated = React.createElement(
+                            "span",
+                            null,
+                            React.createElement(
+                                "i",
+                                { className: "invalid metainfo" },
+                                " - has been invalidated"
+                            )
+                        );
+                    }
+                    if (canInvalidate) {
+                        invalidate = React.createElement(
+                            "span",
+                            null,
+                            ", ",
+                            React.createElement(
+                                "a",
+                                { className: "metainfo", href: '?invalidate=' + file.full_path, "data-file": file.full_path, onClick: this.handleInvalidate },
+                                "force file invalidation"
+                            )
+                        );
+                    }
+                    return React.createElement(
+                        "tr",
+                        { key: file.full_path, "data-path": file.full_path.toLowerCase(), className: i % 2 ? 'alternate' : '' },
+                        React.createElement(
+                            "td",
+                            null,
+                            React.createElement(
+                                "div",
+                                null,
+                                React.createElement(
+                                    "span",
+                                    { className: "pathname" },
+                                    file.full_path
+                                ),
+                                React.createElement("br", null),
+                                React.createElement(FilesMeta, { data: [file.readable.hits, file.readable.memory_consumption, file.last_used] }),
+                                invalidate,
+                                invalidated
+                            )
+                        )
+                    );
+                }.bind(this));
+                return React.createElement(
+                    "div",
+                    null,
+                    React.createElement(FilesListed, { showing: this.state.showing }),
+                    React.createElement(
+                        "table",
+                        null,
+                        React.createElement(
+                            "thead",
+                            null,
+                            React.createElement(
+                                "tr",
+                                null,
+                                React.createElement(
+                                    "th",
+                                    null,
+                                    "Script"
+                                )
+                            )
+                        ),
+                        React.createElement(
+                            "tbody",
+                            null,
+                            fileNodes
+                        )
+                    )
+                );
+            } else {
+                return React.createElement("span", null);
+            }
+        }
+    });
+
+    var FilesMeta = React.createClass({
+        render: function () {
+            return React.createElement(
+                "span",
+                { className: "metainfo" },
+                React.createElement(
+                    "b",
+                    null,
+                    "hits: "
+                ),
+                React.createElement(
+                    "span",
+                    null,
+                    this.props.data[0],
+                    ", "
+                ),
+                React.createElement(
+                    "b",
+                    null,
+                    "memory: "
+                ),
+                React.createElement(
+                    "span",
+                    null,
+                    this.props.data[1],
+                    ", "
+                ),
+                React.createElement(
+                    "b",
+                    null,
+                    "last used: "
+                ),
+                React.createElement(
+                    "span",
+                    null,
+                    this.props.data[2]
+                )
+            );
+        }
+    });
+
+    var FilesListed = React.createClass({
+        getInitialState: function () {
+            return {
+                formatted: opstate.overview.readable.num_cached_scripts,
+                total: opstate.overview.num_cached_scripts
+            };
+        },
+        render: function () {
+            var display = this.state.formatted + ' file' + (this.state.total == 1 ? '' : 's') + ' cached';
+            if (this.props.showing !== null && this.props.showing != this.state.total) {
+                display += ', ' + this.props.showing + ' showing due to filter';
+            }
+            return React.createElement(
+                "h3",
+                null,
+                display
+            );
+        }
+    });
+
+    var overviewCountsObj = ReactDOM.render(React.createElement(OverviewCounts, null), document.getElementById('counts'));
+    var generalInfoObj = ReactDOM.render(React.createElement(GeneralInfo, null), document.getElementById('generalInfo'));
+    var filesObj = ReactDOM.render(React.createElement(Files, null), document.getElementById('filelist'));
+    ReactDOM.render(React.createElement(Directives, null), document.getElementById('directives'));
+</script>
+<?php
+    }
+}
+?>
 
 
-		</div>
-	</div>
+
+        </div>
+    </div>
 
 </div>
