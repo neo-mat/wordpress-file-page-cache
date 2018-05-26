@@ -59,7 +59,7 @@ The PHP Opcache option enables to serve cache using WordPress `advanced-cache.ph
 
 When using PHP Opcache, the cache is as fast as it can be in PHP.
 
-Cache speed (full cache process time) on a 1-core VPS: 60μs (0.06ms or 0.00006 seconds). **No file IO!**
+Cache speed (full cache process time) on a 1-core VPS: 65μs (0.06ms or 0.00006 seconds). **No file IO!**
 
 ![Cache Speed](https://github.com/o10n-x/wordpress-file-page-cache/blob/master/docs/images/cache-speed.png)
  
