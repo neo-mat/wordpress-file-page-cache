@@ -75,6 +75,12 @@ The plugin provides an option to automatically preload the cache on a set time. 
 
 ![Cache Preload](https://github.com/o10n-x/wordpress-file-page-cache/blob/master/docs/images/cache-preload.png)
 
+### PHP Opcache Management
+
+The plugin provides PHP Opcache status and management panel.
+
+![PHP Opcache Management](https://github.com/o10n-x/wordpress-file-page-cache/blob/master/docs/images/opcache-status.png)
+
 ### HTML Search & Replace
 
 A search & replace filter enables to modify the HTML before a page is cached. It supports regular expression.
