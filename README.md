@@ -67,7 +67,7 @@ The plugin provides a cache policy editor that enables to selectively enable/dis
  
 PHP Opcache may have a limited total size. The PHP Opcache option can be configured for individual pages using a individual cache policy.
 
-The plugin provides advanced configuration such as a custom bypass policy, a HTTP header cache policy and more.
+Other advanced configuration include a custom bypass policy, a HTTP header cache policy and more.
 
 ### Dynamic Content Cache
 
