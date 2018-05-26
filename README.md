@@ -59,6 +59,13 @@ The PHP Opcache option enables to serve cache using WordPress `advanced-cache.ph
 
 When using PHP Opcache, the cache is as fast as it can be in PHP.
 
+Cache speed (full cache process time) on a 1-core VPS: 60μs (0.06ms or 0.00006 seconds). **No file IO!**
+
+![image](https://user-images.githubusercontent.com/8843669/40277728-904f228e-5c24-11e8-9c17-a91064fa4057.png)
+![image](https://user-images.githubusercontent.com/8843669/40560493-7a2c9d4e-605a-11e8-93a4-a0ed404c46cf.png)
+![image](https://user-images.githubusercontent.com/8843669/40578634-ae5e4faa-6117-11e8-86c1-a6a7ea0d19b0.png)
+![image](https://user-images.githubusercontent.com/8843669/40578670-18340e1a-6118-11e8-9254-1834adbb7fd6.png)
+
 ### Advanced configuration
 
 The plugin provides a cache policy editor that enables to selectively enable/disable or configure the page cache based on page URLs (with regular expression support) or conditional methods such as `is_page`. The cache policy enables to customize the cache expire time and stale update option for individual pages.
