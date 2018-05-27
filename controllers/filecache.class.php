@@ -33,7 +33,8 @@ class Filecache extends Controller implements Controller_Interface
             'options',
             'cache',
             'http',
-            'shutdown'
+            'shutdown',
+            'file'
         ));
     }
 
@@ -67,6 +68,43 @@ class Filecache extends Controller implements Controller_Interface
                 // output cache
                 if (!defined('O10N_FILECACHE_ADVANCED_OUTPUT')) {
                     require $this->core->modules('filecache')->dir_path() . 'output-cache.php';
+                } else {
+
+                    // verify config
+
+                    // cache directory
+                    $cache_dir = $this->file->directory_path('page-cache');
+
+                    // load file cache config
+                    $config_file = $cache_dir . 'config.php';
+
+                    if (!file_exists($config_file)) {
+
+                        // get config
+                        $config = $this->options->get('filecache.*', false, true);
+
+                        // store in PHP Opcache
+                        try {
+                            $this->file->put_opcache($config_file, $config);
+
+                            // retry cache
+                            Filecache_Output::serve();
+
+                            // served stale cache
+                            if (defined('O10N_FILECACHE_SERVED_STALE')) {
+
+                                // clear output
+                                while (ob_get_level()) {
+                                    ob_end_clean();
+                                }
+
+                                $this->shutdown->add(array($this, 'update_stale'));
+                                exit;
+                            }
+                        } catch (\Exception $e) {
+                            // failed
+                        }
+                    }
                 }
         
                 // add filter for page cache

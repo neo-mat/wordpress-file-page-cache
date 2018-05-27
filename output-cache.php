@@ -14,16 +14,37 @@ if (!defined('ABSPATH')) {
 
 class Filecache_Output
 {
+    // instance
+    protected static $instance = null;
+
     private $config;
     private $stale = false;
 
     /**
-     * Output file cache
+     * Construct output controller
      */
     final public function __construct()
     {
-        // mark output
         define('O10N_FILECACHE_ADVANCED_OUTPUT', true);
+    }
+
+    /**
+     * Serve cache
+     */
+    final public static function load()
+    {
+        // construct controller
+        self::$instance = new self();
+
+        // serve output
+        self::$instance->output();
+    }
+
+    /**
+     * Output file cache
+     */
+    final public function output()
+    {
 
         // disable cache
         if (is_admin() || !isset($_SERVER['REQUEST_METHOD']) || strtoupper($_SERVER['REQUEST_METHOD']) !== 'GET' || (isset($GLOBALS['pagenow']) && $GLOBALS['pagenow'] === 'wp-login.php')) {
@@ -424,7 +445,15 @@ class Filecache_Output
         // create hash
         return md5(implode(':', $cache_hash_components));
     }
+
+    /**
+     * Serve cache
+     */
+    final public static function serve()
+    {
+        self::$instance->output();
+    }
 }
 
 // output cache
-new Filecache_Output();
+Filecache_Output::load();

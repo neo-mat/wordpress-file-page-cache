@@ -254,20 +254,11 @@ if (file_exists($output_cache_controller)) {
      */
     final public function save_config()
     {
-        $cache_dir = (defined('O10N_CACHE_DIR')) ? $this->file->trailingslashit(O10N_CACHE_DIR) . 'page-cache/' : $this->file->trailingslashit(WP_CONTENT_DIR) . 'cache/o10n/page-cache/';
+        $cache_dir = $this->file->directory_path('page-cache');
         $config_file = $cache_dir . 'config.php';
         
         // get config
         $config = $this->options->get('filecache.*', false, true);
-
-        // create dir
-        if (!is_dir($cache_dir)) {
-            try {
-                $this->file->mkdir($cache_dir, false, true);
-            } catch (\Exception $e) {
-                throw new Exception('Failed to create cache directory. ' . $e->getMessage(), 'filecache');
-            }
-        }
 
         // store in PHP Opcache
         $this->file->put_opcache($config_file, $config);
