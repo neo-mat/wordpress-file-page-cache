@@ -216,9 +216,21 @@ class Filecache extends Controller implements Controller_Interface
         // request URL
         $url = $this->url->request();
 
-        // wp HTTP API request
+        // get request headers
+        if (!function_exists('getallheaders')) {
+            foreach ($_SERVER as $name => $value) {
+                /* RFC2616 (HTTP/1.1) defines header fields as case-insensitive entities. */
+                if (strtolower(substr($name, 0, 5)) == 'http_') {
+                    $headers[str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($name, 5)))))] = $value;
+                }
+            }
+            $request_headers = $headers;
+        } else {
+            $request_headers = getallheaders();
+        }
 
-        file_put_contents(trailingslashit(O10N_CACHE_DIR) . 'test.txt', 'test');
+        // wp HTTP API request
+        $this->preload($url, $request_headers, true);
     }
 
     /**
@@ -497,16 +509,15 @@ class Filecache extends Controller implements Controller_Interface
     final public function preload($url = false, $request_headers = false, $force_cache_update = false)
     {
         $request = array();
-        if ($request_headers) {
+        $request['headers'] = array();
+
+        if ($request_headers && is_array($request_headers)) {
             $request['headers'] = $request_headers;
         }
 
         // force cache update
         if ($force_cache_update) {
-            if (!isset($request['headers'])) {
-                $request['headers'] = array();
-            }
-            $request['headers']['x-o10n-fc-force'] = 1;
+            $request['headers']['x-o10n-fc-force-update'] = 1;
         }
 
         // mark preload request (prevent sending page data to save bandwidth)

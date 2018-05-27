@@ -22,16 +22,21 @@ class Filecache_Output
      */
     final public function __construct()
     {
+        // mark output
+        define('O10N_FILECACHE_ADVANCED_OUTPUT', true);
+
         // disable cache
         if (is_admin() || !isset($_SERVER['REQUEST_METHOD']) || strtoupper($_SERVER['REQUEST_METHOD']) !== 'GET' || (isset($GLOBALS['pagenow']) && $GLOBALS['pagenow'] === 'wp-login.php')) {
             return;
         }
 
+        // preload request
+        if (isset($_SERVER['HTTP_X_O10N_FC_FORCE_UPDATE'])) {
+            return;
+        }
+
         // start of page cache output process
         $start = microtime(true);
-
-        // mark output
-        define('O10N_FILECACHE_ADVANCED_OUTPUT', true);
 
         // cache directory
         $cache_dir = (defined('O10N_CACHE_DIR')) ? $this->trailingslashit(O10N_CACHE_DIR) . 'page-cache/' : $this->trailingslashit(WP_CONTENT_DIR) . 'cache/o10n/page-cache/';
