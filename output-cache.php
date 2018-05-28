@@ -46,14 +46,19 @@ class Filecache_Output
     final public function output()
     {
 
-        // disable cache
-        if (is_admin() || !isset($_SERVER['REQUEST_METHOD']) || strtoupper($_SERVER['REQUEST_METHOD']) !== 'GET' || (isset($GLOBALS['pagenow']) && $GLOBALS['pagenow'] === 'wp-login.php')) {
-            return;
+        // cache disabled
+        if (defined('O10N_NO_PAGE_CACHE') || isset($_GET['o10n-no-cache'])) {
+            return false;
         }
 
         // preload request
         if (isset($_SERVER['HTTP_X_O10N_FC_FORCE_UPDATE'])) {
-            return;
+            return false;
+        }
+
+        // disable cache
+        if (is_admin() || !isset($_SERVER['REQUEST_METHOD']) || strtoupper($_SERVER['REQUEST_METHOD']) !== 'GET' || (isset($GLOBALS['pagenow']) && $GLOBALS['pagenow'] === 'wp-login.php')) {
+            return false;
         }
 
         // start of page cache output process
@@ -68,6 +73,11 @@ class Filecache_Output
         // get config from opcache
         $this->config = $this->opcache($config_file);
         if (!$this->config) {
+            return false;
+        }
+
+        // check enabled setting
+        if (!$this->bool('filecache.enabled')) {
             return false;
         }
 
@@ -215,7 +225,8 @@ class Filecache_Output
 
                 // disable PHP output compression
                 ini_set("zlib.output_compression", "Off");
-            
+                
+                // set gzip output header
                 header('Content-Encoding: gzip');
             }
 

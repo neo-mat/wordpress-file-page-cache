@@ -13,7 +13,7 @@ namespace O10n;
 // Enable/disable page cache
 function page_cache($state = true)
 {
-    Core::get('filecache')->enable($state);
+    Core::get('filecache')->enabled($state);
 }
 
 // Enable/disable PHP Opcache boost

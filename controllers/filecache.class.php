@@ -47,6 +47,84 @@ class Filecache extends Controller implements Controller_Interface
             return;
         }
 
+        // check if page cache is enabled
+        if ($this->enabled()) {
+
+            // background update
+            $this->stale_background_update();
+
+            // output cache
+            if (!defined('O10N_FILECACHE_ADVANCED_OUTPUT')) {
+                require $this->core->modules('filecache')->dir_path() . 'output-cache.php';
+            } else {
+
+                // verify config
+
+                // cache directory
+                $cache_dir = $this->file->directory_path('page-cache');
+
+                // load file cache config
+                $config_file = $cache_dir . 'config.php';
+
+                if (!file_exists($config_file)) {
+
+                    // get config
+                    $config = $this->options->get('filecache.*', false, true);
+
+                    // store in PHP Opcache
+                    try {
+                        $this->file->put_opcache($config_file, $config);
+
+                        // retry cache
+                        Filecache_Output::serve();
+
+                        // background update
+                        $this->stale_background_update();
+                    } catch (\Exception $e) {
+                        // failed
+                    }
+                }
+            }
+    
+            // add filter for page cache
+            add_filter('o10n_html_final', array( $this, 'update_cache' ), 1000, 1);
+        }
+    }
+
+    /**
+     * Get / set enabled state of page cache
+     *
+     * @param bool $state Enabled state
+     */
+    final public function enabled($state = null)
+    {
+
+        // set state
+        if (!is_null($state)) {
+            return $this->cache_enabled = $state;
+        }
+
+        if (!is_null($this->cache_enabled)) {
+            return $this->cache_enabled;
+        }
+
+        if (defined('O10N_NO_PAGE_CACHE') || isset($_GET['o10n-no-cache'])) {
+            return $this->cache_enabled = false;
+        }
+
+        // disable cache
+        if (is_admin() || !isset($_SERVER['REQUEST_METHOD']) || strtoupper($_SERVER['REQUEST_METHOD']) !== 'GET' || (isset($GLOBALS['pagenow']) && $GLOBALS['pagenow'] === 'wp-login.php')) {
+            return $this->cache_enabled = false;
+        }
+
+        return $this->cache_enabled = $this->options->bool('filecache.enabled');
+    }
+
+    /**
+     * Handle background update
+     */
+    final private function stale_background_update()
+    {
         // served stale cache
         if (defined('O10N_FILECACHE_SERVED_STALE')) {
 
@@ -58,59 +136,6 @@ class Filecache extends Controller implements Controller_Interface
             $this->shutdown->add(array($this, 'update_stale'));
             exit;
         }
-
-        // File Page Cache requires SSL
-        if ($this->options->bool('filecache.enabled')) {
-
-            // verify if page is cached
-            if ((is_null($this->cache_enabled) || $this->cache_enabled) && !defined('O10N_NO_PAGE_CACHE') && !isset($_GET['o10n-no-cache'])) {
-
-                // output cache
-                if (!defined('O10N_FILECACHE_ADVANCED_OUTPUT')) {
-                    require $this->core->modules('filecache')->dir_path() . 'output-cache.php';
-                } else {
-
-                    // verify config
-
-                    // cache directory
-                    $cache_dir = $this->file->directory_path('page-cache');
-
-                    // load file cache config
-                    $config_file = $cache_dir . 'config.php';
-
-                    if (!file_exists($config_file)) {
-
-                        // get config
-                        $config = $this->options->get('filecache.*', false, true);
-
-                        // store in PHP Opcache
-                        try {
-                            $this->file->put_opcache($config_file, $config);
-
-                            // retry cache
-                            Filecache_Output::serve();
-
-                            // served stale cache
-                            if (defined('O10N_FILECACHE_SERVED_STALE')) {
-
-                                // clear output
-                                while (ob_get_level()) {
-                                    ob_end_clean();
-                                }
-
-                                $this->shutdown->add(array($this, 'update_stale'));
-                                exit;
-                            }
-                        } catch (\Exception $e) {
-                            // failed
-                        }
-                    }
-                }
-        
-                // add filter for page cache
-                add_filter('o10n_html_final', array( $this, 'update_cache' ), 1000, 1);
-            }
-        }
     }
 
     /**
@@ -120,7 +145,13 @@ class Filecache extends Controller implements Controller_Interface
      */
     final public function update_cache($buffer)
     {
-        if ((!is_null($this->cache_enabled) && !$this->cache_enabled) || defined('O10N_NO_PAGE_CACHE') || isset($_GET['o10n-no-cache'])) {
+        // disabled
+        if (!$this->enabled()) {
+            return $buffer;
+        }
+
+        // empty HTML
+        if (trim($buffer) === '') {
             return $buffer;
         }
 
@@ -142,8 +173,9 @@ class Filecache extends Controller implements Controller_Interface
             );
         }
 
+        // apply bypass policy
         if ($this->match_policy($bypass_policy, 'exclude')) {
-            //return $buffer; // bypass cache
+            return $buffer; // bypass cache
         }
 
         // verify cache policy
@@ -269,16 +301,6 @@ class Filecache extends Controller implements Controller_Interface
 
         // wp HTTP API request
         $this->preload($url, $request_headers, true);
-    }
-
-    /**
-     * Enable/disable page cache
-     *
-     * @param bool $state Enabled state
-     */
-    final public function enable($state = true)
-    {
-        $this->cache_enabled = $state;
     }
 
     /**
