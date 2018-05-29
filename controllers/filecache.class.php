@@ -18,6 +18,10 @@ class Filecache extends Controller implements Controller_Interface
     private $opcache_enabled = null;
     private $cache_expire = 86400;
 
+    private $is_preload = false;
+
+    private $cache_dir;
+
     /**
      * Load controller
      *
@@ -34,7 +38,8 @@ class Filecache extends Controller implements Controller_Interface
             'cache',
             'http',
             'shutdown',
-            'file'
+            'file',
+            'json'
         ));
     }
 
@@ -47,8 +52,16 @@ class Filecache extends Controller implements Controller_Interface
             return;
         }
 
+        // return preload status
+        if (isset($_SERVER['HTTP_X_O10N_FC_PRELOAD'])) {
+            $this->is_preload = true;
+        }
+
         // check if page cache is enabled
         if ($this->enabled()) {
+
+            // cache directory
+            $this->cache_dir = $this->file->directory_path('page-cache');
 
             // background update
             $this->stale_background_update();
@@ -60,11 +73,8 @@ class Filecache extends Controller implements Controller_Interface
 
                 // verify config
 
-                // cache directory
-                $cache_dir = $this->file->directory_path('page-cache');
-
                 // load file cache config
-                $config_file = $cache_dir . 'config.php';
+                $config_file = $this->cache_dir . 'config.php';
 
                 if (!file_exists($config_file)) {
 
@@ -88,6 +98,12 @@ class Filecache extends Controller implements Controller_Interface
     
             // add filter for page cache
             add_filter('o10n_html_final', array( $this, 'update_cache' ), 1000, 1);
+        } else {
+            if ($this->is_preload) {
+
+                // disabled
+                $this->output_preload_status(-1);
+            }
         }
     }
 
@@ -147,11 +163,19 @@ class Filecache extends Controller implements Controller_Interface
     {
         // disabled
         if (!$this->enabled()) {
+            if ($this->is_preload) {
+                return json_encode(array(-1));
+            }
+
             return $buffer;
         }
 
         // empty HTML
         if (trim($buffer) === '') {
+            if ($this->is_preload) {
+                return json_encode(array(-2));
+            }
+
             return $buffer;
         }
 
@@ -175,6 +199,10 @@ class Filecache extends Controller implements Controller_Interface
 
         // apply bypass policy
         if ($this->match_policy($bypass_policy, 'exclude')) {
+            if ($this->is_preload) {
+                return json_encode(array(-3));
+            }
+
             return $buffer; // bypass cache
         }
 
@@ -187,6 +215,11 @@ class Filecache extends Controller implements Controller_Interface
             // exclude from cache
             if (isset($cache['bypass']) && $cache['bypass']) {
                 $cache = false;
+
+                // preload status
+                if ($this->is_preload) {
+                    return json_encode(array(-3));
+                }
             }
         } else {
             $cache = true;
@@ -273,6 +306,16 @@ class Filecache extends Controller implements Controller_Interface
             $this->cache->put('filecache', 'page', $cachehash, $cachedata, false, false, $opcache, $cachemeta, true);
 
             header('X-O10n-Cache: MISS');
+
+            if ($this->is_preload) {
+                return json_encode(array(-4, isset($_SERVER['HTTP_X_O10N_FC_FORCE_UPDATE'])));
+            }
+        } else {
+
+            // preload status
+            if ($this->is_preload) {
+                return json_encode(array(-1));
+            }
         }
 
         return $buffer;
@@ -398,22 +441,9 @@ class Filecache extends Controller implements Controller_Interface
 
                     // call method
                     if ($arguments === null) {
-                        if (isset($method_cache[$method])) {
-                            $result = $method_cache[$method];
-                        } else {
-                            $result = $method_cache[$method] = call_user_func($method);
-                        }
+                        $result = call_user_func($method);
                     } else {
-                        $arguments_key = json_encode($arguments);
-
-                        if (isset($method_cache[$method]) && isset($method_cache[$method][$arguments_key])) {
-                            $result = $method_cache[$method][$arguments_key];
-                        } else {
-                            if (!isset($method_param_cache[$method])) {
-                                $method_param_cache[$method] = array();
-                            }
-                            $result = $method_param_cache[$method][$arguments_key] = call_user_func_array($method, $arguments);
-                        }
+                        $result = call_user_func_array($method, $arguments);
                     }
 
                     // expected result is array of options
@@ -568,11 +598,34 @@ class Filecache extends Controller implements Controller_Interface
      */
     final public function preload($url = false, $request_headers = false, $force_cache_update = false)
     {
+        if (!defined('O10N_PRELOAD_REQUEST')) {
+            define('O10N_PRELOAD_REQUEST', true);
+        }
+
         $request = array();
+        $request['timeout'] = 30; // default timeout
+
         $request['headers'] = array();
 
         if ($request_headers && is_array($request_headers)) {
             $request['headers'] = $request_headers;
+        }
+
+        if (is_array($url) && isset($url['url'])) {
+            if (isset($url['headers']) && is_array($url['headers'])) {
+                $request['headers'] = array_merge($request['headers'], $url['headers']);
+            }
+            if (isset($url['wp_http']) && is_array($url['wp_http'])) {
+                $request = array_merge($request, $url['wp_http']);
+            }
+            if (isset($url['force_update'])) {
+                $force_cache_update = ($url['force_update']) ? true : false;
+            }
+            $url = $url['url'];
+        }
+
+        if (!is_string($url)) {
+            throw new Exception('Invalid URL for file cache preload', 'filecache');
         }
 
         // force cache update
@@ -596,7 +649,222 @@ class Filecache extends Controller implements Controller_Interface
             throw new Exception('Failed to preload file cache for ' . esc_url($url) . ' Status: ' . $status, 'filecache');
         }
 
+        $body = wp_remote_retrieve_body($response);
+        try {
+            $status = $this->json->parse($body, true);
+        } catch (\Exception $err) {
+            throw new Exception('Failed to parse preload request result ' . esc_url($url) . ' Error: ' . $err->getMessage() . ' Response: ' . esc_html(htmlentities(substr($body, 0, 200), ENT_COMPAT, 'utf-8')), 'filecache');
+        }
+
         // OK
+        return $status;
+    }
+
+    /**
+     * Return preload processor status
+     *
+     * @param  array $query_config Query configuration
+     * @return array List with URLs to preload
+     */
+    final public function preload_status()
+    {
+
+        // load file cache config
+        if (!$this->cache_dir) {
+            $this->cache_dir = $this->file->directory_path('page-cache');
+        }
+        $config_file = $this->cache_dir . 'preload-processor.php';
+
+        // get status of running processor
+        $status = false;
+        if (file_exists($config_file)) {
+            $status = file_get_contents($config_file);
+
+            // already started
+            try {
+                $status = $this->json->parse($status, true);
+            } catch (\Exception $err) {
+                @unlink($config_file);
+                $status = false;
+            }
+        }
+
+        return $status;
+    }
+
+    /**
+     * Preload processor
+     *
+     * @param  array $query_config Query configuration
+     * @return array List with URLs to preload
+     */
+    final public function preload_processor()
+    {
+
+        // disabled
+        if (!$this->options->bool('filecache.preload.enabled')) {
+            return;
+        }
+
+        ignore_user_abort(true);
+
+        // load file cache config
+        if (!$this->cache_dir) {
+            $this->cache_dir = $this->file->directory_path('page-cache');
+        }
+        $config_file = $this->cache_dir . 'preload-processor.php';
+
+        // restart processor?
+        $restart = true;
+
+        // get status of running processor
+        $status = $this->preload_status();
+
+        // interval based start
+        if ($this->options->bool('filecache.preload.interval.enabled')) {
+            $interval = $this->options->get('filecache.preload.interval.interval', 86400);
+        } else {
+
+            // timing based start
+            $interval = false;
+            $start_time = $this->options->get('filecache.preload.interval.start', '04:00');
+            $restart_time = strtotime(date('Y-m-d') . ' ' . $start_time);
+        }
+
+        // http query interval in milliseconds
+        $http_interval = $this->options->get('filecache.preload.http_interval', false);
+
+        if ($status && is_array($status) && isset($status['date'])) {
+            if ($interval) {
+
+                // already running
+                if ($status['date'] > (time() - $interval)) {
+                    $restart = false;
+                }
+            } else {
+
+                // no time for restart
+                if ($restart_time > time()) {
+                    $restart = false;
+                }
+
+                // already running
+                if ($restart_time === $status['start_time']) {
+                    $restart = false;
+                }
+            }
+        }
+
+        $restart = true;
+
+        if ($restart) {
+            $status = array();
+            $status['date'] = time();
+            if (!$interval) {
+                $status['start_time'] = $restart_time;
+            }
+
+            // get query config
+            $query_config = $this->options->get('filecache.preload.query');
+            if (!$query_config || empty($query_config)) {
+                $query_config = false;
+            }
+
+            // get URLs to query
+            $status['urls'] = $this->preload_query($query_config);
+
+            // write preload processor status
+            try {
+                $this->file->put_contents($config_file, json_encode($status));
+            } catch (\Exception $err) {
+                throw new Exception('Failed to write preload processor status: ' . $err->getConfig(), 'filecache');
+            }
+        }
+
+        if (isset($status['urls']) && !empty($status['urls'])) {
+
+            // get config hash before start, abort on change
+            $start_hash = md5_file($config_file);
+
+            // urls are sorted on priority
+            foreach ($status['urls'] as $url => $url_config) {
+                if (!is_array($url_config)) {
+                    $url_config = $status['urls'][$url] = array();
+                }
+
+                // not yet completed
+                if (!isset($url_config['status'])) {
+
+                    // preload
+                    $url_config['url'] = $url;
+                    if (!isset($url_config['timeout'])) {
+                        $url_config['timeout'] = 30;
+                    }
+
+                    print $url . '<br />';
+
+                    $start = microtime(true);
+
+                    // reset PHP execution time limit
+                    set_time_limit((isset($url_config['timeout'])) ? $url_config['timeout'] : 100);
+
+                    try {
+                        $preload_status = $this->preload($url_config);
+                    } catch (Exception $err) {
+                        $preload_status = array(-6, $err->getMessage());
+                    }
+
+                    // verify preload processor status
+                    if ($start_hash !== md5_file($config_file)) {
+
+                        // abort
+                        return;
+                    }
+
+                    $status['urls'][$url]['status'] = $preload_status;
+                    $status['urls'][$url]['start'] = $start;
+                    $status['urls'][$url]['end'] = microtime(true);
+
+                    $status['last_preload'] = time();
+
+                    // write preload processor status
+                    try {
+                        $this->file->put_contents($config_file, json_encode($status));
+                    } catch (\Exception $err) {
+                        throw new Exception('Failed to write preload processor status: ' . $err->getConfig(), 'filecache');
+                    }
+
+                    // update hash
+                    $start_hash = md5_file($config_file);
+
+                    $ms_elapsed = round((microtime(true) - $start) * 1000);
+                    
+                    $url_http_interval = $http_interval;
+                    if (isset($url_config['http_interval'])) {
+                        if (!$url_config['http_interval']) {
+                            $url_http_interval = false;
+                        } elseif (is_numeric($url_config['http_interval'])) {
+                            $url_http_interval = $url_config['http_interval'];
+                        }
+                    }
+
+                    if ($url_http_interval && $ms_elapsed < $url_http_interval) {
+
+                        // wait
+                        usleep(round(($url_http_interval - $ms_elapsed) * 1000));
+                    }
+                }
+            }
+        }
+
+        $status['completed'] = time();
+
+        // write preload processor status
+        try {
+            $this->file->put_contents($config_file, json_encode($status));
+        } catch (\Exception $err) {
+            throw new Exception('Failed to write preload processor status: ' . $err->getConfig(), 'filecache');
+        }
     }
 
     /**
@@ -610,6 +878,75 @@ class Filecache extends Controller implements Controller_Interface
         if (!$query_config || empty($query_config)) {
             $query_config = $this->preload_default_query();
         }
+
+        $urls = array();
+
+        // config keys
+        $config_keys = array(
+            'priority', 'force_update', 'wp_http', 'headers'
+        );
+
+        if (is_array($query_config)) {
+            foreach ($query_config as $config) {
+                $url_config = array();
+                foreach ($config_keys as $key) {
+                    if (isset($config[$key])) {
+                        $url_config[$key] = $config[$key];
+                    }
+                }
+
+                if (isset($config['url'])) {
+                    $urls[$config['url']] = (empty($url_config)) ? 1 : $url_config;
+                } elseif (isset($config['method']) && isset($config['link_method'])) {
+
+                    // verify methods
+                    if (!function_exists($config['method']) || !is_callable($config['method'])) {
+                        throw new Exception('Preload query: method does not exist or is not callable <code>' . esc_html($config['method']) . '</code>', 'filecache');
+                    }
+
+                    // verify link methods
+                    if (!function_exists($config['link_method']) || !is_callable($config['link_method'])) {
+                        throw new Exception('Preload query: link method does not exist or is not callable <code>' . esc_html($config['link_method']) . '</code>', 'filecache');
+                    }
+
+
+                    // parameters to apply to method
+                    $arguments = (isset($config['arguments'])) ? $config['arguments'] : null;
+
+                    // call method
+                    try {
+                        if ($arguments === null) {
+                            $results = call_user_func($config['method']);
+                        } else {
+                            $results = call_user_func_array($config['method'], $arguments);
+                        }
+                    } catch (\Exception $e) {
+                        throw new Exception('Preload URL query failed <code>' . esc_html($config['method'] . '('.json_encode($arguments).')') . '</code> ' . $e->getMessage(), 'filecache');
+                    }
+                    foreach ($results as $result) {
+                        try {
+                            // retrieve link
+                            $url = call_user_func_array($config['link_method'], array($result));
+                        } catch (\Exception $e) {
+                            throw new Exception('Preload URL link method failed <code>' . esc_html($config['method'] . '('.json_encode($arguments).') :: ' . $config['link_method'] . '()') . '</code> ' . $e->getMessage(), 'filecache');
+                        }
+
+                        $urls[$url] = (empty($url_config)) ? array() : $url_config;
+                    }
+                }
+            }
+        }
+
+        // sort based on priority
+        uasort($urls, function ($a, $b) {
+            if ($a['priority'] == $b['priority']) {
+                return 0;
+            }
+
+            return ($a['priority'] < $b['priority']) ? -1 : 1;
+        });
+
+        return $urls;
     }
 
     /**
@@ -621,10 +958,16 @@ class Filecache extends Controller implements Controller_Interface
     final public function preload_default_query()
     {
         return array(
+
+            // front page
+            array(
+                'url' => home_url(),
+                'priority' => 1
+            ),
             array(
                 'method' => 'get_pages',
                 'link_method' => 'get_permalink',
-                'priority' => 1
+                'priority' => 2
             ),
             array(
                 'method' => 'get_posts',
@@ -633,27 +976,43 @@ class Filecache extends Controller implements Controller_Interface
             ),
             array(
                 'method' => 'get_categories',
-                'arguments' => array(
+                'arguments' => array(array(
                     'hide_empty' => true,
                     'depth' => 0,
                     'hierarchical' => true,
                     'orderby' => 'count',
                     'order' => 'desc'
-                ),
+                )),
                 'link_method' => 'get_category_link',
                 'priority' => 10
             ),
             array(
                 'method' => 'get_terms',
-                'arguments' => array(
+                'arguments' => array(array(
                     'taxonomy' => 'post_tag',
                     'orderby' => 'count',
                     'order' => 'desc',
                     'hide_empty' => true
-                ),
+                )),
                 'link_method' => 'get_term_link',
                 'priority' => 15
             )
         );
+    }
+
+    /**
+     * Output JSON status for preload processor
+     */
+    final private function output_preload_status($status)
+    {
+        if (!is_array($status)) {
+            $status = array($status);
+        }
+
+        $status = json_encode($status);
+        header('Content-Type: application/json');
+        header('Content-Length: ' . strlen($status));
+        echo $status;
+        exit;
     }
 }

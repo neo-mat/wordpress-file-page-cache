@@ -3,13 +3,4 @@
 This is an archive of older and core update changelog entries. Most recent plugin update entries are maintained in readme.txt
 
 
-
-
-- option to exclude page from cache using cache policy JSON: `{"bypass": true}`.
-- PHP opcache enable method renamed to `\O10n\page_cache_opcache(true|false)`
-- added: custom cache bypass policy (enable cache for logged in users)
-- added: include HTTP headers in cache
-- added: HTTP header cache policy: define what headears to include with cached pages
-- added: option to customize the cache hash to support caching of dynamic content (multiple cache versions for the same URL)
-- added: option to conditially add `X-O10n-Cache` header with performance timing.
-- added: preload processor to automatically preload cache with fine grained configuration options (priority, force cache update, update interval and more)
+- improved: PHP Opcache status panel javascript (React.js) optimized and localized

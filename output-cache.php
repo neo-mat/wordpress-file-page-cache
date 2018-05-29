@@ -160,6 +160,16 @@ class Filecache_Output
             if (!$gzipHTML) {
                 return false;
             }
+   
+            // return preload status
+            if (isset($_SERVER['HTTP_X_O10N_FC_PRELOAD'])) {
+                echo json_encode(array(
+                    $pagemeta[0],
+                    $this->stale
+                ));
+
+                return;
+            }
 
             // cached headers
             $responseHeaders = apply_filters('o10n_page_cache_headers', $responseHeaders);

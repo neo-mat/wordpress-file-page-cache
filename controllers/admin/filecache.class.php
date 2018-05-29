@@ -64,7 +64,12 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
     {
         // instantiate controller
         return parent::construct($Core, array(
-            'AdminView'
+            'AdminView',
+            'AdminAjax',
+            'filecache',
+            'json',
+            'file',
+            'shutdown'
         ));
     }
 
@@ -73,6 +78,18 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
      */
     protected function setup()
     {
+
+        // test preload query
+        add_action('wp_ajax_o10n_test_query', array( $this, 'ajax_test_query'), 10);
+        
+        // query preload status
+        add_action('wp_ajax_o10n_preload_status', array( $this, 'ajax_preload_status'), 10);
+
+        // (re-)start preload processor
+        add_action('wp_ajax_o10n_preload_start', array( $this, 'ajax_preload_start'), 10);
+
+        // (re-)start preload processor
+        add_action('wp_ajax_o10n_preload_stop', array( $this, 'ajax_preload_stop'), 10);
 
         // settings link on plugin index
         add_filter('plugin_action_links_' . $this->core->modules('filecache')->basename(), array($this, 'settings_link'));
@@ -164,5 +181,250 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
             $('.plugin-title strong',r).html('<?php print $this->core->modules('filecache')->name(); ?><a href="https://optimization.team" class="g100" style="font-size: 10px;float: right;font-weight: normal;opacity: .2;line-height: 14px;">O10N</span>');
             var d=$('.plugin-description',r).html();$('.plugin-description',r).html(d.replace('Google PageSpeed','<a href="https://developers.google.com/speed/pagespeed/insights/" target="_blank">Google PageSpeed</a>').replace('Google Lighthouse','<a href="https://developers.google.com/web/tools/lighthouse/" target="_blank">Google Lighthouse</a>').replace('ThinkWithGoogle.com','<a href="https://testmysite.thinkwithgoogle.com/" target="_blank">ThinkWithGoogle.com</a>').replace('Excellent','<span style="font-style:italic;color:#079c2d;">Excellent</span>'));
 });</script><?php
+    }
+
+    /**
+     * Test preload query
+     */
+    final public function ajax_test_query()
+    {
+
+        // process AJAX request
+        $request = $this->AdminAjax->request();
+
+        $query = $request->data('query');
+        if ($query) {
+            try {
+                $query = $this->json->parse($query, true);
+            } catch (\Exception $err) {
+                $request->output_errors($err->getMessage());
+            }
+        }
+
+        // test query
+        try {
+            $result = $this->filecache->preload_query($query);
+        } catch (Exception $err) {
+            $request->output_errors($err->getMessage());
+        }
+
+        $request->output_ok(false, array(number_format_i18n(count($result), 0)));
+    }
+
+    /**
+     * Start preload processor
+     */
+    final public function ajax_preload_start()
+    {
+        // process AJAX request
+        $request = $this->AdminAjax->request();
+
+        $this->shutdown->add(array($this->filecache, 'preload_processor'));
+
+        $request->output_ok(false, 1);
+    }
+
+    /**
+     * Stop preload processor
+     */
+    final public function ajax_preload_stop()
+    {
+        // process AJAX request
+        $request = $this->AdminAjax->request();
+
+        $cache_dir = $this->file->directory_path('page-cache');
+        $config_file = $cache_dir . 'preload-processor.php';
+        if (file_exists($config_file)) {
+            try {
+                $this->file->put_contents($config_file, json_encode(array()));
+            } catch (\Exception $err) {
+                throw new Exception('Failed to write preload processor status: ' . $err->getConfig(), 'filecache');
+            }
+        }
+
+        $request->output_ok(false, 1);
+    }
+
+    /**
+     * Return preload status
+     */
+    final public function ajax_preload_status()
+    {
+
+        // process AJAX request
+        $request = $this->AdminAjax->request();
+
+        $preload_status = $this->filecache->preload_status();
+        if (!$preload_status || $preload_status['completed']) {
+            $perc = -1;
+        } else {
+            if ($preload_status && isset($preload_status['urls'])) {
+                $total = count($preload_status['urls']);
+                $pending = 0;
+                foreach ($preload_status['urls'] as $url) {
+                    if (!isset($url['status'])) {
+                        $pending++;
+                    }
+                }
+                if ($pending > 0) {
+                    $perc = 100 - ($pending / ($total / 100));
+                } else {
+                    $perc = 100;
+                }
+            } else {
+                $perc = 0;
+            }
+        }
+
+        $result = array($perc);
+
+        if ($perc !== -1) {
+            $result[1] = $this->preload_status_filelist($preload_status);
+            $result[2] = $this->preload_status_speed($preload_status);
+            $result[3] = 'Preloading <span style="color:black;">' . \number_format_i18n(count($preload_status['urls']), 0) . '</span> URLs. <span style="color:black;">'. \number_format_i18n($pending, 0) . '</span> URLs pending.';
+        }
+
+        $request->output_ok(false, $result);
+    }
+
+    /**
+     * Return preload status file list table rows
+     */
+    final public function preload_status_filelist($preload_status = false)
+    {
+        // preload status
+        if (!$preload_status) {
+            $preload_status = $this->filecache->preload_status();
+        }
+
+        $rows = '';
+
+        $urls = ($preload_status && isset($preload_status['urls'])) ? $preload_status['urls'] : false;
+        if ($urls) {
+            $urls = array_reverse($urls);
+            $count = 0;
+            $first_preload = false;
+            $last_preload = false;
+            $preload_count = 0;
+            foreach ($urls as $url => $url_status) {
+                if (!isset($url_status['status']) || !isset($url_status['start'])) {
+                    continue;
+                }
+
+                if (!$first_preload || $url_status['start'] < $first_preload) {
+                    $first_preload = $url_status['start'];
+                }
+                if (!$last_preload || $url_status['start'] > $last_preload) {
+                    $last_preload = $url_status['start'];
+                }
+                $preload_count++;
+
+                if ($count >= 10) {
+                    break;
+                }
+
+                $start_time = round($url_status['start']);
+                if (date('Ymd', time()) == date('Ymd', $start_time)) {
+                    $time = date('H:i:s', $start_time);
+                } else {
+                    $time = \human_time_diff($start_time, \current_time('timestamp')) . ' ago';
+                }
+            
+                $parsed_url = parse_url($url);
+                $path = (isset($parsed_url['path']) && $parsed_url['path']) ? $parsed_url['path'] : '/' . (isset($parsed_url['query']) ? '?' . $parsed_url['query'] : '');
+
+                $speed_time = ($url_status['end'] - $url_status['start']);
+                if ((string) number_format($speed_time, 2, '.', '') === '0.00') {
+                    $speed = \number_format_i18n($speed_time, 5) . 's';
+                } else {
+                    $speed = \number_format_i18n($speed_time, 2) . 's';
+                }
+
+                $status = '';
+                if ($url_status['status'][0] > 1) {
+                    if ($url_status['status'][1]) {
+                        $status = 'Stale cache ('.\human_time_diff($url_status['status'][0], \current_time('timestamp')).' old, expired for '.$url_status['status'][1].'s)';
+                    } else {
+                        $status = 'In cache ('.\human_time_diff($url_status['status'][0], \current_time('timestamp')).' old)';
+                    }
+                } else {
+                    switch ((string)$url_status['status'][0]) {
+                        case "-1":
+                            $status = 'Disabled';
+                        break;
+                        case "-2":
+                            $status = 'Empty HTML';
+                        break;
+                        case "-3":
+                            $status = 'Bypass policy';
+                        break;
+                        case "-4":
+                            $status = 'Updated';
+                            if (isset($url_status['status'][1]) && $url_status['status'][1]) {
+                                $status .= ' (forced)';
+                            }
+                        break;
+                    }
+                }
+
+                $rows .= '
+<tr>
+    <td class="d">' . $time .'</td>
+    <td class="l"><a href="' . $url . '" target="_blank">' . $path . '</a></td>
+    <td class="t">' . $speed . '</td>
+    <td class="s">' . $status . '</td>
+</tr>';
+                $count++;
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Return preload speed
+     */
+    final public function preload_status_speed($preload_status = false)
+    {
+        // preload status
+        if (!$preload_status) {
+            $preload_status = $this->filecache->preload_status();
+        }
+
+        $first_preload = false;
+        $last_preload = false;
+        $preload_count = 0;
+
+        $urls = ($preload_status && isset($preload_status['urls'])) ? $preload_status['urls'] : false;
+        if ($urls) {
+            $urls = array_reverse($urls);
+
+            foreach ($urls as $url => $url_status) {
+                if (!isset($url_status['status']) || !isset($url_status['start'])) {
+                    continue;
+                }
+
+                if (!$first_preload || $url_status['start'] < $first_preload) {
+                    $first_preload = $url_status['start'];
+                }
+                if (!$last_preload || $url_status['start'] > $last_preload) {
+                    $last_preload = $url_status['start'];
+                }
+                $preload_count++;
+            }
+        }
+
+        if ($preload_count <= 1 || !$last_preload || $first_preload === $last_preload) {
+            return 'Speed: unknown';
+        } else {
+            $time_elapsed = $last_preload - $first_preload;
+            if ($time_elapsed <= 0) {
+                return 'Speed: unknown';
+            } else {
+                $speed = 1 / ($time_elapsed / $preload_count);
+
+                return 'Speed: '.number_format_i18n($speed, 2).' URLs per second (max. '.number_format_i18n($speed * 86400, 0).' URLs per day)';
+            }
+        }
     }
 }

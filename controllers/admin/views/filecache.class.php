@@ -36,6 +36,7 @@ class AdminViewFilecache extends AdminViewBase
             'options',
             'filecache',
             'AdminClient',
+            'AdminFilecache',
             'json'
         ));
     }
@@ -92,6 +93,30 @@ class AdminViewFilecache extends AdminViewBase
 
         // set module path
         $this->AdminClient->set_config('module_url', $this->module->dir_url());
+
+        $tab = (isset($_REQUEST['tab'])) ? trim($_REQUEST['tab']) : $this->default_tab_view;
+        switch ($tab) {
+            case "preload":
+
+                // file cache styles
+                wp_enqueue_style('o10n_view_filecache', $this->module->dir_url() . 'admin/css/view-filecache.css');
+
+                // global admin script
+                wp_enqueue_script('o10n_view_filecache', $this->module->dir_url() . 'admin/js/view-filecache.js', array( 'jquery', 'o10n_cp' ), $this->module->version());
+            break;
+            case "opcache":
+            
+                // file cache styles
+                wp_enqueue_style('o10n_view_filecache_opcache', $this->module->dir_url() . 'admin/css/view-filecache-opcache.css');
+
+                // global admin script
+                wp_enqueue_script('o10n_view_filecache_opcache', $this->module->dir_url() . 'admin/js/view-filecache-react.js', array( 'jquery', 'o10n_cp' ), $this->module->version());
+
+            break;
+            default:
+                
+            break;
+        }
     }
 
 
@@ -270,6 +295,14 @@ if (file_exists($output_cache_controller)) {
     final public function preload_default_query()
     {
         return $this->filecache->preload_default_query();
+    }
+
+    /**
+     * Return preload processor status
+     */
+    final public function preload_status()
+    {
+        return array($this->filecache->preload_status(), $this->AdminFilecache->preload_status_filelist(), $this->AdminFilecache->preload_status_speed());
     }
 
     /**
