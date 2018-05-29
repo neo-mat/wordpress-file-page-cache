@@ -170,9 +170,11 @@ class Filecache_Output
 
                 if ($this->stale) {
                     $this->mark_stale();
-                }
 
-                return;
+                    return;
+                } else {
+                    exit;
+                }
             }
 
             // cached headers
