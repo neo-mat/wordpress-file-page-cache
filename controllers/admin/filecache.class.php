@@ -219,9 +219,11 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
         // process AJAX request
         $request = $this->AdminAjax->request();
 
-        $this->shutdown->add(array($this->filecache, 'preload_processor'));
+        header('Content-Type: application/json');
+        print json_encode(array('ok' => true));
 
-        $request->output_ok(false, 1);
+        $this->shutdown->add(array($this->filecache, 'preload_processor'));
+        exit;
     }
 
     /**
