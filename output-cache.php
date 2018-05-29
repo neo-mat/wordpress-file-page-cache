@@ -280,7 +280,7 @@ class Filecache_Output
     /**
      * Mark stale cache output
      */
-    final public function mark_stale()
+    final private function mark_stale()
     {
 
         // mark stale cache (trigger background update)
