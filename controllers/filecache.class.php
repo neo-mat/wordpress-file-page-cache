@@ -801,8 +801,6 @@ class Filecache extends Controller implements Controller_Interface
                         $url_config['timeout'] = 30;
                     }
 
-                    print $url . '<br />';
-
                     $start = microtime(true);
 
                     // reset PHP execution time limit
