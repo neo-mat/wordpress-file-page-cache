@@ -254,25 +254,35 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
         // process AJAX request
         $request = $this->AdminAjax->request();
 
+        $prev_perc = $request->data('perc');
+
         $preload_status = $this->filecache->preload_status();
-        if (!$preload_status || $preload_status['completed']) {
+        if (!$preload_status) {
             $perc = -1;
         } else {
-            if ($preload_status && isset($preload_status['urls'])) {
-                $total = count($preload_status['urls']);
-                $pending = 0;
-                foreach ($preload_status['urls'] as $url) {
-                    if (!isset($url['status'])) {
-                        $pending++;
-                    }
-                }
-                if ($pending > 0) {
-                    $perc = 100 - ($pending / ($total / 100));
-                } else {
-                    $perc = 100;
-                }
+            if ($preload_status['completed']) {
+                $perc = 100;
             } else {
-                $perc = 0;
+                if ($preload_status && isset($preload_status['urls'])) {
+                    $total = count($preload_status['urls']);
+                    $pending = 0;
+                    foreach ($preload_status['urls'] as $url) {
+                        if (!isset($url['status'])) {
+                            $pending++;
+                        }
+                    }
+                    if ($pending > 0) {
+                        $perc = round(100 - ($pending / ($total / 100)));
+                    } else {
+                        $perc = 100;
+                    }
+                } else {
+                    $perc = 0;
+                }
+            }
+
+            if ($prev_perc === $perc) {
+                $perc = -1;
             }
         }
 
@@ -331,7 +341,10 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
                 }
             
                 $parsed_url = parse_url($url);
-                $path = (isset($parsed_url['path']) && $parsed_url['path']) ? $parsed_url['path'] : '/' . (isset($parsed_url['query']) ? '?' . $parsed_url['query'] : '');
+                $path = (isset($parsed_url['path']) && $parsed_url['path']) ? $parsed_url['path'] : '/';
+                if (isset($parsed_url['query'])) {
+                    $path .= '?' . $parsed_url['query'];
+                }
 
                 $speed_time = ($url_status['end'] - $url_status['start']);
                 if ((string) number_format($speed_time, 2, '.', '') === '0.00') {

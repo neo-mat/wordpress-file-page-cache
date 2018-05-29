@@ -168,6 +168,10 @@ class Filecache_Output
                     $this->stale
                 ));
 
+                if ($this->stale) {
+                    $this->mark_stale();
+                }
+
                 return;
             }
 
@@ -266,36 +270,44 @@ class Filecache_Output
             if (!$this->stale) {
                 exit;
             } else {
-
-                // mark stale cache (trigger background update)
-                define('O10N_FILECACHE_SERVED_STALE', true);
-                
-                // avoid abortion of PHP process
-                ignore_user_abort(true);
-                
-                if (function_exists('session_id') && session_id()) {
-                    session_write_close();
-                }
-
-                // PHP running under FastCGI
-                if (function_exists('fastcgi_finish_request')) {
-                    fastcgi_finish_request();
-                } else {
-                    if (!headers_sent()) {
-                        header("Connection: close");
-                    }
-
-                    // flush output
-                    while (ob_get_level()) {
-                        ob_end_flush();
-                    }
-                    flush();
-                }
-
-                // capture output
-                ob_start();
+                $this->mark_stale();
             }
         }
+    }
+
+    /**
+     * Mark stale cache output
+     */
+    final public function mark_stale()
+    {
+
+        // mark stale cache (trigger background update)
+        define('O10N_FILECACHE_SERVED_STALE', true);
+        
+        // avoid abortion of PHP process
+        ignore_user_abort(true);
+        
+        if (function_exists('session_id') && session_id()) {
+            session_write_close();
+        }
+
+        // PHP running under FastCGI
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        } else {
+            if (!headers_sent()) {
+                header("Connection: close");
+            }
+
+            // flush output
+            while (ob_get_level()) {
+                ob_end_flush();
+            }
+            flush();
+        }
+
+        // capture output
+        ob_start();
     }
 
     /**

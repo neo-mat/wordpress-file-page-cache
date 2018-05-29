@@ -94,7 +94,7 @@ $preload_status = $preload_status[0];
 
             <div class="suboption">
                 <h5 class="h">&nbsp;HTTP Request Interval</h5>
-                <input type="number" style="width:120px;" min="1" name="o10n[filecache.preload.http_interval]" value="<?php $value('filecache.preload.http_interval'); ?>" placeholder="500" />
+                <input type="number" style="width:120px;" min="1" name="o10n[filecache.preload.http_interval]" value="<?php $value('filecache.preload.http_interval'); ?>" placeholder="No restriction" />
                 <p class="description">Enter a minimum interval time in milliseconds (ms) between HTTP requests.</p>
             </div>
 
