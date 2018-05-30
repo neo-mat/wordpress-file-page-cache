@@ -283,7 +283,7 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
                 }
             }
 
-            if ($prev_perc === $perc) {
+            if (intval($prev_perc) === intval($perc)) {
                 $perc = -1;
             }
         }

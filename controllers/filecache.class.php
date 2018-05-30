@@ -48,7 +48,7 @@ class Filecache extends Controller implements Controller_Interface
      */
     protected function setup()
     {
-        if (!$this->env->is_optimization()) {
+        if (!$this->env->enabled('filecache')) {
             return;
         }
 

@@ -45,9 +45,16 @@ class Filecache_Output
      */
     final public function output()
     {
+        if (
+            // optimization disabled
+            (defined('O10N_DISABLED') && O10N_DISABLED)
 
-        // cache disabled
-        if (defined('O10N_NO_PAGE_CACHE') || isset($_GET['o10n-no-cache'])) {
+            // file cache plugin disabled
+            or (defined('O10N_DISABLED_FILECACHE') && O10N_DISABLED_FILECACHE)
+
+            // cache disabled
+            or (defined('O10N_NO_PAGE_CACHE') || isset($_GET['o10n-no-cache']))
+        ) {
             return false;
         }
 
