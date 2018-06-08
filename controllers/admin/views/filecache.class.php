@@ -71,14 +71,7 @@ class AdminViewFilecache extends AdminViewBase
      */
     final public function help_tab()
     {
-        $data = array(
-            'name' => __('File Page Cache', 'o10n'),
-            'github' => 'https://github.com/o10n-x/wordpress-file-page-cache',
-            //'wordpress' => 'https://wordpress.org/support/plugin/http2-optimization',
-            'docs' => 'https://github.com/o10n-x/wordpress-file-page-cache/tree/master/docs'
-        );
-
-        return $data;
+        return $this->AdminFilecache->help_tab();
     }
 
     /**
