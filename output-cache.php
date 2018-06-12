@@ -436,7 +436,7 @@ class Filecache_Output
         // host name
         $use_forwarded_host = apply_filters('o10n_pagecache_use_forwarded_host', false);
         $hostname = ($use_forwarded_host && isset($_SERVER['HTTP_X_FORWARDED_HOST'])) ? $_SERVER['HTTP_X_FORWARDED_HOST'] : (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : null);
-        $hostname = isset($host) ? $host : $_SERVER['SERVER_NAME'];
+        $hostname = isset($hostname) ? $hostname : $_SERVER['SERVER_NAME'];
         $host = $hostname . $port;
 
         // request URL
@@ -444,7 +444,7 @@ class Filecache_Output
         $request_url = $protocol . '://' . $host . $request_uri;
 
         if (!$hash_format || empty($hash_format)) {
-            $hash_format = array('request_uri');
+            $hash_format = array('request_url');
         }
 
         // construct cache hash
