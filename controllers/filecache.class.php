@@ -895,6 +895,11 @@ class Filecache extends Controller implements Controller_Interface
 
                 if (isset($config['url'])) {
                     $urls[$config['url']] = (empty($url_config)) ? 1 : $url_config;
+
+                    // apply search / replace to link
+                    if (isset($config['link_replace']) && is_array($config['link_replace'])) {
+                        $url = $this->search_replace_link($url, $config['link_replace']);
+                    }
                 } elseif (isset($config['method']) && isset($config['link_method'])) {
 
                     // verify methods
@@ -929,6 +934,11 @@ class Filecache extends Controller implements Controller_Interface
                             throw new Exception('Preload URL link method failed <code>' . esc_html($config['method'] . '('.json_encode($arguments).') :: ' . $config['link_method'] . '()') . '</code> ' . $e->getMessage(), 'filecache');
                         }
 
+                        // apply search / replace to link
+                        if (isset($config['link_replace']) && is_array($config['link_replace'])) {
+                            $url = $this->search_replace_link($url, $config['link_replace']);
+                        }
+
                         $urls[$url] = (empty($url_config)) ? array() : $url_config;
                     }
                 }
@@ -945,6 +955,46 @@ class Filecache extends Controller implements Controller_Interface
         });
 
         return $urls;
+    }
+
+    /**
+     * Apply search / replace configuration to link
+     *
+     * @param  string $url           Link to modify
+     * @param  array  $replaceConfig Search/replace config
+     * @return array  $url Modified link
+     */
+    final public function search_replace_link($url, $replaceConfig)
+    {
+        // search / replace entries
+        $s = $r = $rs = $rr = array();
+
+        foreach ($replaceConfig as $replace) {
+            if (!isset($replace['search']) || !isset($replace['replace'])) {
+                continue;
+            }
+
+            // regular expression
+            if (isset($replace['regex']) && $replace['regex']) {
+                $rs[] = $replace['search'];
+                $rr[] = $replace['replace'];
+            } else {
+                $s[] = $replace['search'];
+                $r[] = $replace['replace'];
+            }
+        }
+
+        // string replace
+        if (!empty($s)) {
+            $url = str_replace($s, $r, $url);
+        }
+
+        // regular expression replace
+        if (!empty($sr)) {
+            $url = preg_replace($rs, $rr, $url);
+        }
+
+        return $url;
     }
 
     /**
