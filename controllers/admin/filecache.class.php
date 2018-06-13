@@ -362,9 +362,13 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
                 }
             
                 $parsed_url = parse_url($url);
-                $path = (isset($parsed_url['path']) && $parsed_url['path']) ? $parsed_url['path'] : '/';
-                if (isset($parsed_url['query'])) {
-                    $path .= '?' . $parsed_url['query'];
+                if ($parsed_url['host'] !== $_SERVER['HTTP_HOST']) {
+                    $path = $url;
+                } else {
+                    $path = (isset($parsed_url['path']) && $parsed_url['path']) ? $parsed_url['path'] : '/';
+                    if (isset($parsed_url['query'])) {
+                        $path .= '?' . $parsed_url['query'];
+                    }
                 }
 
                 $speed_time = ($url_status['end'] - $url_status['start']);

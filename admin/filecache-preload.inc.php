@@ -151,7 +151,8 @@ $preload_status = $preload_status[0];
             <?php
             $urls = ($preload_status && isset($preload_status['urls'])) ? $preload_status['urls'] : false;
             if ($urls) {
-                $urls = array_reverse($urls); ?>
+                $urls = array_reverse($urls);
+            } ?>
             <table cellpadding="0" cellspacing="0" border="0" class="status preload_status_files">
                 <thead>
                 <tr>
@@ -170,7 +171,6 @@ $preload_status = $preload_status[0];
             <?php 
 
                 print $preload_status_speed;
-            }
             ?>
             </p>
         </td>

@@ -990,7 +990,7 @@ class Filecache extends Controller implements Controller_Interface
         }
 
         // regular expression replace
-        if (!empty($sr)) {
+        if (!empty($rs)) {
             $url = preg_replace($rs, $rr, $url);
         }
 
