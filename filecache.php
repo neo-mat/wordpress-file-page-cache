@@ -12,7 +12,7 @@ namespace O10n;
  * @wordpress-plugin
  * Plugin Name:       File Page Cache with PHP Opcache
  * Description:       Advanced file based page cache with PHP Opcache boost option (500x faster than Redis and Memcached).
- * Version:           0.0.31
+ * Version:           0.0.32
  * Author:            Optimization.Team
  * Author URI:        https://optimization.team/
  * GitHub Plugin URI: https://github.com/o10n-x/wordpress-file-page-cache
@@ -30,12 +30,12 @@ if (defined('WP_INSTALLING') && WP_INSTALLING) {
 }
 
 // settings
-$module_version = '0.0.31';
+$module_version = '0.0.32';
 $minimum_core_version = '0.0.48';
 $plugin_path = dirname(__FILE__);
 
 // load the optimization module loader
-if (!class_exists('\O10n\Module')) {
+if (!class_exists('\O10n\Module', false)) {
     require $plugin_path . '/core/controllers/module.php';
 }
 
