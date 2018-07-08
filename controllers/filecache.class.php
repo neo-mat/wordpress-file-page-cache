@@ -57,6 +57,20 @@ class Filecache extends Controller implements Controller_Interface
             $this->is_preload = true;
         }
 
+        // setup on WordPress init hook
+        add_action('init', array($this, 'init_setup'), PHP_INT_MAX);
+    }
+
+    /**
+     * Setup controller on WordPress init
+     */
+    final public function init_setup()
+    {
+        // disabled
+        if (!$this->env->enabled('filecache')) {
+            return;
+        }
+
         // check if page cache is enabled
         if ($this->enabled()) {
 
