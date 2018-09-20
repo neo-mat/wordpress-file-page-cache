@@ -72,7 +72,7 @@ class Filecache_Output
         if (is_admin() || !isset($_SERVER['REQUEST_METHOD']) || strtoupper($_SERVER['REQUEST_METHOD']) !== 'GET' || (isset($GLOBALS['pagenow']) && $GLOBALS['pagenow'] === 'wp-login.php')) {
             return false;
         }
-
+        
         // start of page cache output process
         $start = microtime(true);
 
@@ -428,25 +428,41 @@ class Filecache_Output
      *
      * @param array $hash_format Custom hash format configuration
      */
-    final public static function cache_hash($hash_format = false)
+    final public static function cache_hash($hash_format = false, $request_url = false)
     {
+        if (!$request_url) {
 
-        // environment variables
-        $ssl = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on');
-        $sp = strtolower($_SERVER['SERVER_PROTOCOL']);
-        $protocol = substr($sp, 0, strpos($sp, '/')) . (($ssl) ? 's' : '');
-        $port = $_SERVER['SERVER_PORT'];
-        $port = ((! $ssl && $port == '80') || ($ssl && $port == '443')) ? '' : ':'.$port;
+            // environment variables
+            $ssl = (! empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on');
+            $sp = strtolower($_SERVER['SERVER_PROTOCOL']);
+            $protocol = substr($sp, 0, strpos($sp, '/')) . (($ssl) ? 's' : '');
+            $port = $_SERVER['SERVER_PORT'];
+            $port = ((! $ssl && $port == '80') || ($ssl && $port == '443')) ? '' : ':'.$port;
         
-        // host name
-        $use_forwarded_host = apply_filters('o10n_pagecache_use_forwarded_host', false);
-        $hostname = ($use_forwarded_host && isset($_SERVER['HTTP_X_FORWARDED_HOST'])) ? $_SERVER['HTTP_X_FORWARDED_HOST'] : (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : null);
-        $hostname = isset($hostname) ? $hostname : $_SERVER['SERVER_NAME'];
-        $host = $hostname . $port;
+            // host name
+            $use_forwarded_host = apply_filters('o10n_pagecache_use_forwarded_host', false);
+            $hostname = ($use_forwarded_host && isset($_SERVER['HTTP_X_FORWARDED_HOST'])) ? $_SERVER['HTTP_X_FORWARDED_HOST'] : (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : null);
+            $hostname = isset($hostname) ? $hostname : $_SERVER['SERVER_NAME'];
+            $host = $hostname . $port;
 
-        // request URL
-        $request_uri = $_SERVER['REQUEST_URI'];
-        $request_url = $protocol . '://' . $host . $request_uri;
+            // request URL
+            $request_uri = $_SERVER['REQUEST_URI'];
+            $request_url = $protocol . '://' . $host . (($port) ? $port : '') . $request_uri;
+        }
+
+        $parsed = parse_url($request_url);
+
+        $ssl = (isset($parsed['scheme']) && $parsed['scheme'] == 'https');
+        if (isset($parsed['port'])) {
+            $port = ((! $ssl && $port == '80') || ($ssl && $port == '443')) ? '' : ':'.$port;
+        } else {
+            $port = '';
+        }
+        $protocol = (isset($parsed['scheme'])) ? $parsed['scheme'] : '';
+        $hostname = (isset($parsed['host'])) ? $parsed['host'] : '';
+        $host = $hostname . $port;
+        $request_uri = (isset($parsed['path']) ? $parsed['path'] : '') . (isset($parsed['query']) ? '?' . $parsed['query'] : '');
+        $request_url = $protocol . '://' . $host . (($port) ? $port : '') . $request_uri;
 
         if (!$hash_format || empty($hash_format)) {
             $hash_format = array('request_url');
@@ -489,7 +505,6 @@ class Filecache_Output
             }
         }
 
-        // create hash
         return md5(implode(':', $cache_hash_components));
     }
 

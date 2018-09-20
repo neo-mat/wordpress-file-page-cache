@@ -16,9 +16,6 @@ if (!defined('ABSPATH') || !defined('O10N_ADMIN')) {
 $this->form_start(__('File Page Cache', 'o10n'), 'filecache');
 
 ?>
-<p>The following button will clear the cache for all pages.</p>
-<a href="<?php print Core::get('cache')->flush_url('filecache');?>" class="button button-primary button-large"><span class="dashicons dashicons-trash"></span> Flush file cache</a>
-
 <table class="form-table">
     <tr valign="top">
         <td>
@@ -33,6 +30,10 @@ https://domain.com/path/" style="height:250px"></textarea>
 <?php
     submit_button(__('Clear Cache'), 'primary large', 'is_submit', false);
 ?>
+<br /><br />
+<hr />
+<p>The following button will clear the cache for all pages.</p>
+<a href="<?php print Core::get('cache')->flush_url('filecache');?>" class="button button-primary button-large"><span class="dashicons dashicons-trash"></span> Flush file cache</a>
 
 <p>You can clear the cache from PHP using the method <code>\O10n\page_cache_clear([$urls])</code>. When no $urls is provided, the cache for the current page is cleared. $urls can be a string (full URL) or an array of URLs.</p>
 
@@ -40,7 +41,7 @@ https://domain.com/path/" style="height:250px"></textarea>
 
 <h3>wp-config.php</h3>
 <pre style="padding:10px;border:solid 1px #efefef;">
-// bypass advanced cache to allow functions.php to provoke cache clear method
+// bypass wp-content/advanced-cache.php to allow functions.php to provoke cache clear method
 if (isset($_COOKIE['secrect-cookie-cache-admin']) &amp;&amp; intval($_COOKIE['secrect-cookie-cache-admin']) === 'secret-code' &amp;&amp; isset($_SERVER['HTTP_PRAGMA']) &amp;&amp; $_SERVER['HTTP_PRAGMA'] === 'no-cache') {
     define('O10N_BYPASS_ADVANCED_CACHE', true);
 }

@@ -287,13 +287,6 @@ if (file_exists($output_cache_controller)) {
                     if (empty($urls)) {
                         $forminput->error('filecache.clear', 'URL list is empty.');
                     } else {
-                        foreach ($urls as $n => $url) {
-                            if (!preg_match('|^http(s)?://|Ui', $url)) {
-                                $url = preg_replace('|^/|Ui', '', $url);
-                            }
-                            $url = trailingslashit(site_url()) . $url;
-                            $urls[$n] = $url;
-                        }
 
                         // clear cache
                         Core::get('filecache')->delete_cache($urls);

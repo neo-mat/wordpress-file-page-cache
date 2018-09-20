@@ -213,6 +213,8 @@ class Filecache extends Controller implements Controller_Interface
 
         // apply bypass policy
         if ($this->match_policy($bypass_policy, 'exclude')) {
+            header('X-O10n-Cache: BYPASS');
+                
             if ($this->is_preload) {
                 return json_encode(array(-3));
             }
@@ -229,6 +231,8 @@ class Filecache extends Controller implements Controller_Interface
             // exclude from cache
             if (isset($cache['bypass']) && $cache['bypass']) {
                 $cache = false;
+
+                header('X-O10n-Cache: BYPASS');
 
                 // preload status
                 if ($this->is_preload) {
@@ -342,11 +346,6 @@ class Filecache extends Controller implements Controller_Interface
      */
     final public function delete_cache($urls = false)
     {
-        // disabled
-        if (!$this->enabled()) {
-            return;
-        }
-
         if (!$urls) {
             // request URL
             $urls = array($this->url->request());
@@ -365,6 +364,11 @@ class Filecache extends Controller implements Controller_Interface
                 continue;
             }
 
+            if (!preg_match('|^http(s)?://|Ui', $url)) {
+                $url = preg_replace('|^/|Ui', '', $url);
+                $url = trailingslashit(site_url()) . $url;
+            }
+
             // custom cache hash
             $hash_format = false;
             if ($this->options->bool('filecache.hash.enabled')) {
@@ -372,7 +376,7 @@ class Filecache extends Controller implements Controller_Interface
             }
 
             // cache hash
-            $cachehash = Filecache_Output::cache_hash($hash_format);
+            $cachehash = Filecache_Output::cache_hash($hash_format, $url);
 
             // store in cache
             $this->cache->delete('filecache', 'page', $cachehash);

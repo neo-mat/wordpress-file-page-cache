@@ -31,7 +31,7 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
             'title_attr' => 'Preload Cache'
         ),
         'clear' => array(
-            'title' => 'Clear',
+            'title' => 'Clear Cache',
             'title_attr' => 'Clear cache'
         ),
         'opcache' => array(
@@ -101,6 +101,9 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
         // meta links on plugin index
         add_filter('plugin_row_meta', array( $this, 'plugin_row_meta' ), 10, 2);
 
+        // enqueue scripts
+        add_action('admin_enqueue_scripts', array( $this, 'enqueue_scripts' ), $this->first_priority);
+
         // title on plugin index
         add_action('pre_current_active_plugins', array( $this, 'plugin_title'), 10);
 
@@ -123,6 +126,23 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
                 exit;
             }
         }
+    }
+
+    /**
+     * Enqueue scripts and styles
+     */
+    final public function enqueue_scripts()
+    {
+        // skip if user is not logged in
+        if (!is_admin() || !is_user_logged_in()) {
+            return;
+        }
+
+        $module_url = $this->core->modules('filecache')->dir_url();
+        $version = $this->core->modules('filecache')->version();
+
+        // global admin script
+        wp_enqueue_script("o10n-filecache-page-cache-menu", $module_url . 'admin/js/view-filecache-admin.js', array( 'jquery' ), $version);
     }
     
     /**

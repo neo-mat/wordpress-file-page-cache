@@ -1,0 +1,1 @@
+jQuery(function(a){a("#publish").length&&a("#publish").closest("#major-publishing-actions").length&&a("#filecache_invalidate_container").length&&(a("#publish").closest("#major-publishing-actions").append(a("#filecache_invalidate_container")),a("#filecache_invalidate_container").show())});
