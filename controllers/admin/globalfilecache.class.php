@@ -98,15 +98,26 @@ class AdminGlobalfilecache extends ModuleAdminController implements Module_Admin
                 'href' => $this->cache->flush_url('reset')
             ));
 
-            $admin_base = 'themes.php';
+            $admin_base = 'tools.php';
         }
 
-        // flush CSS cache
+        // flush cache
         $admin_bar->add_menu(array(
             'parent' => 'o10n-filecache-cache',
             'id' => 'o10n-cache-flush-filecache',
             'href' => $this->cache->flush_url('filecache'),
             'title' => '<span class="dashicons dashicons-trash o10n-menu-icon"></span> Flush file cache'
         ));
+
+        if (!is_admin()) {
+
+            // flush cache for current page
+            $admin_bar->add_menu(array(
+                'parent' => 'o10n-filecache-cache',
+                'id' => 'o10n-cache-clear-filecache-page',
+                'href' => add_query_arg(array( 'page' => 'o10n-filecache', 'clear-cache' => $currenturl ), admin_url($admin_base)),
+                'title' => '<span class="dashicons dashicons-trash o10n-menu-icon"></span> Clear file cache for current page'
+            ));
+        }
     }
 }

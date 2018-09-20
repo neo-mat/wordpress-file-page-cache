@@ -25,7 +25,9 @@ class Filecache_Output
      */
     final public function __construct()
     {
-        define('O10N_FILECACHE_ADVANCED_OUTPUT', true);
+        if (!defined('O10N_FILECACHE_ADVANCED_OUTPUT')) {
+            define('O10N_FILECACHE_ADVANCED_OUTPUT', true);
+        }
     }
 
     /**
@@ -51,6 +53,9 @@ class Filecache_Output
 
             // file cache plugin disabled
             or (defined('O10N_DISABLED_FILECACHE') && O10N_DISABLED_FILECACHE)
+
+            // bypass advanced cache (/wp-content/advanced-cache.php)
+            or (defined('O10N_BYPASS_ADVANCED_CACHE') && O10N_BYPASS_ADVANCED_CACHE)
 
             // cache disabled
             or (defined('O10N_NO_PAGE_CACHE') || isset($_GET['o10n-no-cache']))
@@ -498,4 +503,6 @@ class Filecache_Output
 }
 
 // output cache
-Filecache_Output::load();
+if (!is_admin()) {
+    Filecache_Output::load();
+}

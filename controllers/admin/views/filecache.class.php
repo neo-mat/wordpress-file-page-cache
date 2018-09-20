@@ -20,6 +20,8 @@ class AdminViewFilecache extends AdminViewBase
     // default tab view
     private $default_tab_view = 'intro';
 
+    public $xxx = 'v1';
+
     /**
      * Load controller
      *
@@ -33,11 +35,13 @@ class AdminViewFilecache extends AdminViewBase
         return parent::construct($Core, array(
             'json',
             'file',
+            'admin',
             'options',
             'filecache',
             'AdminClient',
             'AdminFilecache',
-            'json'
+            'json',
+            'cache'
         ));
     }
     
@@ -127,6 +131,7 @@ class AdminViewFilecache extends AdminViewBase
             case "preload":
             case "opcache":
             case "intro":
+            case "clear":
                 $view_key = 'filecache-' . $tab;
             break;
             default:
@@ -264,6 +269,41 @@ if (file_exists($output_cache_controller)) {
                 ));
 
             break;
+            case "clear":
+
+                // flush all
+                if (isset($_POST['flush_all'])) {
+                } else {
+                    $list = $forminput->get('filecache.clear', 'newline_array');
+
+                    $urls = array();
+                    foreach ($list as $url) {
+                        if (trim($url) === '') {
+                            continue;
+                        }
+                        $urls[] = trim($url);
+                    }
+
+                    if (empty($urls)) {
+                        $forminput->error('filecache.clear', 'URL list is empty.');
+                    } else {
+                        foreach ($urls as $n => $url) {
+                            if (!preg_match('|^http(s)?://|Ui', $url)) {
+                                $url = preg_replace('|^/|Ui', '', $url);
+                            }
+                            $url = trailingslashit(site_url()) . $url;
+                            $urls[$n] = $url;
+                        }
+
+                        // clear cache
+                        Core::get('filecache')->delete_cache($urls);
+
+                        // add error notice
+                        $this->admin->add_notice('Cache cleared for specified URLs.', 'settings', 'SUCCESS');
+                    }
+                }
+
+                break;
         }
     }
     

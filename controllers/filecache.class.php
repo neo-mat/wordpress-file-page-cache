@@ -336,6 +336,51 @@ class Filecache extends Controller implements Controller_Interface
     }
 
     /**
+     * Delete page from cache
+     *
+     * @param bool|array $urls Optionally, URLs to delete.
+     */
+    final public function delete_cache($urls = false)
+    {
+        // disabled
+        if (!$this->enabled()) {
+            return;
+        }
+
+        if (!$urls) {
+            // request URL
+            $urls = array($this->url->request());
+        }
+
+        if (is_string($urls)) {
+            $urls = array($urls);
+        }
+
+        die('ccc');
+        if (!class_exists('O10n\Filecache_Output')) {
+            require_once $this->core->modules('filecache')->dir_path() . 'output-cache.php';
+        }
+
+        foreach ($urls as $url) {
+            if (trim($url) === '') {
+                continue;
+            }
+
+            // custom cache hash
+            $hash_format = false;
+            if ($this->options->bool('filecache.hash.enabled')) {
+                $hash_format = $this->options->get('filecache.hash.config');
+            }
+
+            // cache hash
+            $cachehash = Filecache_Output::cache_hash($hash_format);
+
+            // store in cache
+            $this->cache->delete('filecache', 'page', $cachehash);
+        }
+    }
+
+    /**
      * Update stale cache
      */
     final public function update_stale()
@@ -385,7 +430,7 @@ class Filecache extends Controller implements Controller_Interface
      *
      * @param array $policy Policy config
      */
-    final private function match_policy($policy, $filter_type = 'include')
+    final private function match_policy($policy, $filter_type = 'include', $url = false)
     {
         $match = ($filter_type === 'include') ? true : false;
 
@@ -394,7 +439,9 @@ class Filecache extends Controller implements Controller_Interface
         }
 
         // request URL
-        $url = $this->url->request();
+        if (!$url) {
+            $url = $this->url->request();
+        }
 
         foreach ($policy as $condition) {
             if ($filter_type === 'include' && is_array($match)) {

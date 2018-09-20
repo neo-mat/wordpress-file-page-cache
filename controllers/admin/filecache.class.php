@@ -30,6 +30,10 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
             'title' => 'Preload',
             'title_attr' => 'Preload Cache'
         ),
+        'clear' => array(
+            'title' => 'Clear',
+            'title_attr' => 'Clear cache'
+        ),
         'opcache' => array(
             'title' => 'PHP Opcache',
             'title_attr' => 'PHP Opcache Status',
@@ -102,6 +106,23 @@ class AdminFilecache extends ModuleAdminController implements Module_Admin_Contr
 
         // admin options page
         add_action('admin_menu', array($this, 'admin_menu'), 50);
+
+        // admin options page
+        add_action('admin_init', array($this, 'admin_init'), 50);
+    }
+    
+    /**
+     * Admin init
+     */
+    public function admin_init()
+    {
+        if (isset($_GET['clear-cache']) && preg_match('|http(s)?://|Ui', $_GET['clear-cache'])) {
+            $this->filecache->delete_cache($_GET['clear-cache']);
+            
+            if (wp_redirect($_GET['clear-cache'])) {
+                exit;
+            }
+        }
     }
     
     /**

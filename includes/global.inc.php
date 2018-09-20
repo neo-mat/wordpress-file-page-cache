@@ -27,3 +27,9 @@ function page_cache_expire($timestamp)
 {
     Core::get('filecache')->expire($timestamp);
 }
+
+// Clear page cache for current page or urls
+function page_cache_clear($urls = false)
+{
+    Core::get('filecache')->delete_cache($urls);
+}
