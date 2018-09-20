@@ -356,7 +356,6 @@ class Filecache extends Controller implements Controller_Interface
             $urls = array($urls);
         }
 
-        die('ccc');
         if (!class_exists('O10n\Filecache_Output')) {
             require_once $this->core->modules('filecache')->dir_path() . 'output-cache.php';
         }
