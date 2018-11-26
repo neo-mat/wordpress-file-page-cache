@@ -12,6 +12,20 @@ if (!defined('ABSPATH') || !defined('O10N_ADMIN')) {
     exit;
 }
 
+
+$clear_list = get_option('o10n_clear_cache_list', array());
+if (is_array($clear_list)) {
+    $list = '';
+    foreach ($clear_list as $url) {
+        if (trim($url) !== '') {
+            $list .= $url . "\n";
+        }
+    }
+    $clear_list = $list;
+} else {
+    $clear_list = '';
+}
+
 // print form header
 $this->form_start(__('File Page Cache', 'o10n'), 'filecache');
 
@@ -22,7 +36,7 @@ $this->form_start(__('File Page Cache', 'o10n'), 'filecache');
             <h5 class="h">&nbsp;Clear cache list</h5>
             <textarea class="json-array-lines" name="o10n[filecache.clear]" data-json-type="json-array-lines" placeholder="/path/to/post
 or ...
-https://domain.com/path/" style="height:250px"></textarea>
+https://domain.com/path/" style="height:250px"><?php print esc_html($clear_list); ?></textarea>
             <p class="description">Enter a list of paths or full URLs to clear the cache for. </p>
         </td>
     </tr>

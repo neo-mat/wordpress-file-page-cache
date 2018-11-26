@@ -138,7 +138,7 @@ class Filecache_Output
 
             // expired
             if (isset($pagemeta[3]) && ($pagemeta[0] + $pagemeta[3]) < time()) {
-
+               
                 // serve stale cache while cache is updated in the background
                 if ($this->bool('filecache.stale.enabled')) {
                     $this->stale = (time() - ($pagemeta[0] + $pagemeta[3]));
@@ -146,6 +146,8 @@ class Filecache_Output
                     if ($max_age && $this->stale > $max_age) {
                         return false;
                     }
+                } else {
+                    return false;
                 }
             }
 
@@ -191,11 +193,21 @@ class Filecache_Output
 
             // cached headers
             $responseHeaders = apply_filters('o10n_page_cache_headers', $responseHeaders);
+            
+            // skip custom expire header if the header is removed by config
+            $no_expire = false;
+
             if ($responseHeaders && !empty($responseHeaders)) {
 
                 // add
                 if (isset($responseHeaders[0]) && !empty($responseHeaders[0])) {
                     foreach ($responseHeaders[0] as $key => $value) {
+
+                        // set expire manually
+                        if (isset($pagemeta[3]) && strtolower($key) === 'expires') {
+                            continue;
+                        }
+
                         header($key . ":" . $value);
                     }
                 }
@@ -203,6 +215,9 @@ class Filecache_Output
                 // remove
                 if (isset($responseHeaders[1]) && !empty($responseHeaders[1])) {
                     foreach ($responseHeaders[1] as $name) {
+                        if (strtolower($name) === 'expires') {
+                            $no_expire = true;
+                        }
                         if (function_exists('header_remove')) {
                             header_remove($name);
                         } else {
@@ -220,6 +235,10 @@ class Filecache_Output
             }
 
             header("Last-Modified: ".gmdate("D, d M Y H:i:s", $pagemeta[0])." GMT");
+            if (!$no_expire && isset($pagemeta[3])) {
+                header("Expires: ".gmdate("D, d M Y H:i:s", $pagemeta[0] + $pagemeta[3])." GMT");
+            }
+
             header("Etag: " . $pagemeta[1]);
             header('Vary: Accept-Encoding');
 
@@ -430,6 +449,11 @@ class Filecache_Output
      */
     final public static function cache_hash($hash_format = false, $request_url = false)
     {
+        // load cache hash methods
+        if ($hash_format && !defined('O10N_CACHE_HASH_METHODS_LOADED')) {
+            require_once(self::$instance->trailingslashit(__DIR__) . 'includes/cache_hash.inc.php');
+        }
+
         if (!$request_url) {
 
             // environment variables
@@ -485,6 +509,19 @@ class Filecache_Output
                     break;
                 }
             } elseif (is_array($component) && isset($component['method'])) {
+                if (strpos($component['method'], 'page_cache_') === 0) {
+                    $method = 'O10n\page_cache_hash_no_query_string';
+                    if (function_exists($method)) {
+                        $component['method'] = $method;
+
+                        // always add URL as first argument
+                        if (!isset($component['attributes']) || !is_array($component['attributes'])) {
+                            $component['attributes'] = array();
+                        }
+                        array_unshift($component['attributes'], $request_url);
+                    }
+                }
+
                 if (function_exists($component['method']) && is_callable($component['method'])) {
                     $method = $component['method'];
                     $arguments = (isset($component['attributes'])) ? $component['attributes'] : null;

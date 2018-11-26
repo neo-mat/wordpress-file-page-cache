@@ -20,8 +20,6 @@ class AdminViewFilecache extends AdminViewBase
     // default tab view
     private $default_tab_view = 'intro';
 
-    public $xxx = 'v1';
-
     /**
      * Load controller
      *
@@ -158,7 +156,7 @@ class AdminViewFilecache extends AdminViewBase
 
                 $forminput->type_verify(array(
                     'filecache.enabled' => 'bool',
-                    'filecache.expire' => 'int',
+                    'filecache.expire' => 'int-empty',
                     'filecache.filter.enabled' => 'bool',
                     'filecache.filter.type' => 'string',
 
@@ -290,6 +288,9 @@ if (file_exists($output_cache_controller)) {
 
                         // clear cache
                         Core::get('filecache')->delete_cache($urls);
+
+                        // persist input
+                        update_option('o10n_clear_cache_list', $urls, false);
 
                         // add error notice
                         $this->admin->add_notice('Cache cleared for specified URLs.', 'settings', 'SUCCESS');

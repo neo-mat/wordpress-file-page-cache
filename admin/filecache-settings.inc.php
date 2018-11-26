@@ -59,7 +59,7 @@ $this->form_start(__('File Page Cache', 'o10n'), 'filecache');
                         <option value="exclude"<?php $selected('filecache.filter.type', 'exclude'); ?>>Exclude by default</option>
                     </select>
                 </span>
-                <p class="description">The cache policy filter enables to include or exclude pages from the cache.</p>
+                <p class="description">The cache policy filter enables to cache pages based on a include/exclude policy. To exclude pages from cache, you can also use the dedicated bypass policy (see below).</p>
             </div>
 
             <div class="suboption" data-ns="filecache.filter"<?php $visible('filecache.filter'); ?>>
@@ -173,16 +173,10 @@ $this->form_start(__('File Page Cache', 'o10n'), 'filecache');
             <div id="filecache-hash-config"><div class="loading-json-editor"><?php print __('Loading JSON editor...', 'o10n'); ?></div></div>
             <input type="hidden" class="json" name="o10n[filecache.hash.config]" data-json-type="json-array" data-json-editor-height="auto" data-json-editor-init="1" value="<?php print esc_attr($json('filecache.hash.config', array('request_uri'))); ?>" />
             <p class="description">Enter a JSON array with hash variables. (<a href="javascript:void(0);" onclick="jQuery('#hash_example').fadeToggle();">show example</a>)</p>
-            <div class="info_yellow" id="hash_example" style="display:none;"><strong>Example:</strong> <pre class="clickselect" title="<?php print esc_attr('Click to select', 'optimization'); ?>" style="cursor:copy;padding: 10px;margin: 0 1px;margin-top:5px;font-size: 13px;">[
-    "hostname",
-    "request_uri",
-    {
-        "method": "is_user_logged_in"
-    },
-    {
-        "method": "hash_method",
-        "arguments": ["x","paramY",100]
-    }
+            <div class="info_yellow" id="hash_example" style="display:none;"><strong>Example:</strong> <p class="description">The example shows how to calculate the cache hash based on the request URL without a query string. The <code>page_cache_hash_no_query_string</code> method is provided by the File Cache plugin and strips the query string from the URL. The example cache hash config will return the same cache for pages with any query string and it can add security to prevent a cache storage attack. You can manually set a cache hash for individual pages using the cache policy configuration to cache specific query strings while caching random query strings is prevented.<pre class="clickselect" title="<?php print esc_attr('Click to select', 'optimization'); ?>" style="cursor:copy;padding: 10px;margin: 0 1px;margin-top:5px;font-size: 13px;">[
+  {
+    "method": "page_cache_hash_no_query_string"
+  }
 ]</pre></div>
             </div>
 

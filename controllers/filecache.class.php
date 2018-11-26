@@ -998,11 +998,11 @@ class Filecache extends Controller implements Controller_Interface
                             throw new Exception('Preload URL link method failed <code>' . esc_html($config['method'] . '('.json_encode($arguments).') :: ' . $config['link_method'] . '()') . '</code> ' . $e->getMessage(), 'filecache');
                         }
 
-      
                         // apply search / replace to link
                         if (isset($config['link_replace']) && is_array($config['link_replace'])) {
                             $url = $this->search_replace_link($url, $config['link_replace']);
                         }
+
                         $urls[$url] = (empty($url_config)) ? array() : $url_config;
                     }
                 }
