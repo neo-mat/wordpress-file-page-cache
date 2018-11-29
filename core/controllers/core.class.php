@@ -25,6 +25,7 @@ class Core
 
         // core controllers
         'core' => array(
+            'admin',
             'error',
             'env',
             'i18n',
@@ -37,8 +38,7 @@ class Core
             'options',
             'install',
             'shutdown',
-            'output',
-            'admin'
+            'output'
         ),
 
         // plugin admin controllers
