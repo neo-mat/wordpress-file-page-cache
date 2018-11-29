@@ -30,6 +30,10 @@ function config($key, $value = null)
     }
 }
 
+function trailingslashit($path, $separator = DIRECTORY_SEPARATOR)
+{
+    return (substr($path, -1) === $separator) ? $path : $path . $separator;
+}
 
 // load cron related methods
 require O10N_CORE_PATH . 'includes/cron.inc.php';

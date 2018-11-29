@@ -36,7 +36,7 @@ class AdminScreenOptionsEditor extends AdminScreenOptionsBase
     protected function setup()
     {
         // load themes
-        $theme_files = new \GlobIterator($this->file->trailingslashit(O10N_CORE_PATH) . 'admin/css/codemirror/*.css');
+        $theme_files = new \GlobIterator(trailingslashit(O10N_CORE_PATH) . 'admin/css/codemirror/*.css');
         if (empty($theme_files)) {
             throw new Exception('No themes found for CoreMirror editor.', 'admin');
         }

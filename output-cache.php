@@ -77,7 +77,7 @@ class Filecache_Output
         $start = microtime(true);
 
         // cache directory
-        $cache_dir = (defined('O10N_CACHE_DIR')) ? $this->trailingslashit(O10N_CACHE_DIR) . 'page-cache/' : $this->trailingslashit(WP_CONTENT_DIR) . 'cache/o10n/page-cache/';
+        $cache_dir = (defined('O10N_CACHE_DIR')) ? self::trailingslashit(O10N_CACHE_DIR) . 'page-cache/' : self::trailingslashit(WP_CONTENT_DIR) . 'cache/o10n/page-cache/';
 
         // load file cache config
         $config_file = $cache_dir . 'config.php';
@@ -437,7 +437,7 @@ class Filecache_Output
      *
      * @param string $path The path to add a trailing slash.
      */
-    final private function trailingslashit($path, $separator = DIRECTORY_SEPARATOR)
+    final public static function trailingslashit($path, $separator = DIRECTORY_SEPARATOR)
     {
         return (substr($path, -1) === $separator) ? $path : $path . $separator;
     }
@@ -451,7 +451,7 @@ class Filecache_Output
     {
         // load cache hash methods
         if ($hash_format && !defined('O10N_CACHE_HASH_METHODS_LOADED')) {
-            require_once(self::$instance->trailingslashit(__DIR__) . 'includes/cache_hash.inc.php');
+            require_once(self::trailingslashit(__DIR__) . 'includes/cache_hash.inc.php');
         }
 
         if (!$request_url) {

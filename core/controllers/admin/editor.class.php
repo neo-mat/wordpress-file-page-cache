@@ -108,7 +108,7 @@ class AdminEditor extends Controller implements Controller_Interface
             return false;
         }
 
-        $dir = $this->file->trailingslashit($dir);
+        $dir = trailingslashit($dir);
 
         // directory contents
         $assets = array();
@@ -129,7 +129,7 @@ class AdminEditor extends Controller implements Controller_Interface
         $theme_directoryname = basename($theme_directory);
 
         // abspath
-        $abspath = $this->file->trailingslashit(ABSPATH);
+        $abspath = trailingslashit(ABSPATH);
 
         // extension position
         $extpos = strlen($assetType['ext']) * -1;
@@ -154,10 +154,10 @@ class AdminEditor extends Controller implements Controller_Interface
                 $asset[$this->AdminClient->index('filename')] = $filename . '/';
 
                 if ($is_theme_directory) {
-                    $asset[$this->AdminClient->index('filepath')] = $this->file->trailingslashit(str_replace($theme_directory, '', $file));
+                    $asset[$this->AdminClient->index('filepath')] = trailingslashit(str_replace($theme_directory, '', $file));
                     $asset[$this->AdminClient->index('theme')] = true;
                 } else {
-                    $asset[$this->AdminClient->index('filepath')] = $this->file->trailingslashit(str_replace($abspath, '/', $file));
+                    $asset[$this->AdminClient->index('filepath')] = trailingslashit(str_replace($abspath, '/', $file));
                     $asset[$this->AdminClient->index('theme')] = false;
                 }
                 $asset[$this->AdminClient->index('time')] = 0;
@@ -487,7 +487,7 @@ class AdminEditor extends Controller implements Controller_Interface
 
         // scan directory of file
         if (!is_dir($path) && file_exists($path)) {
-            $path = $this->file->trailingslashit(dirname($path));
+            $path = trailingslashit(dirname($path));
         }
 
         // verify if directory
@@ -500,7 +500,7 @@ class AdminEditor extends Controller implements Controller_Interface
 
             // return file contents
             $request->output_ok(false, array(
-                $this->file->trailingslashit($queryPath),
+                trailingslashit($queryPath),
                 $assets
             ));
         } else {

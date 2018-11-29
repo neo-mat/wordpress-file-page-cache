@@ -116,7 +116,7 @@ class Url extends Controller implements Controller_Interface
     final public function root_path()
     {
         if (!$this->root_path) {
-            $this->root_path = $this->remove_host($this->file->trailingslashit(home_url(), '/'));
+            $this->root_path = $this->remove_host(trailingslashit(home_url(), '/'));
         }
 
         return $this->root_path;

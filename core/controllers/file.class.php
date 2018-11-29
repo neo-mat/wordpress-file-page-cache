@@ -74,7 +74,7 @@ class File extends Controller implements Controller_Interface
         }
 
         // stylesheet directory
-        $this->theme_directory = $this->trailingslashit(get_stylesheet_directory());
+        $this->theme_directory = trailingslashit(get_stylesheet_directory());
 
         // detect PHP Opcache support
         if (function_exists('opcache_invalidate')) {
@@ -356,7 +356,7 @@ class File extends Controller implements Controller_Interface
 
         // valid root paths
         $valid_root_paths = array(
-            $this->trailingslashit(WP_CONTENT_DIR),
+            trailingslashit(WP_CONTENT_DIR),
             O10N_CACHE_DIR,
             $this->theme_directory
         );
@@ -381,13 +381,13 @@ class File extends Controller implements Controller_Interface
         $strip = false;
 
         if (strpos($path, ABSPATH) !== false) {
-            $strip = $this->trailingslashit(ABSPATH);
+            $strip = trailingslashit(ABSPATH);
         } elseif (strpos($path, O10N_CACHE_DIR) !== false) {
-            $strip = $this->trailingslashit(O10N_CACHE_DIR);
+            $strip = trailingslashit(O10N_CACHE_DIR);
         } elseif (strpos($path, dirname(ABSPATH)) !== false) {
-            $strip = $this->trailingslashit(dirname(ABSPATH));
+            $strip = trailingslashit(dirname(ABSPATH));
         } elseif (isset($_SERVER['DOCUMENT_ROOT']) && strpos($path, $_SERVER['DOCUMENT_ROOT']) !== false) {
-            $strip = $this->trailingslashit($_SERVER['DOCUMENT_ROOT']);
+            $strip = trailingslashit($_SERVER['DOCUMENT_ROOT']);
         }
 
         return ($strip) ? str_replace($strip, '/', $path) : $path; // no document root path found
@@ -419,22 +419,22 @@ class File extends Controller implements Controller_Interface
 
                 // custom CSS cache directory
                 if (defined('O10N_CACHE_DIR_CSS') && strpos($path, 'css/') === 0) {
-                    $path = $this->trailingslashit(O10N_CACHE_DIR_CSS) . substr($path, 4);
+                    $path = trailingslashit(O10N_CACHE_DIR_CSS) . substr($path, 4);
                 } else {
-                    $path = $this->trailingslashit(O10N_CACHE_DIR . $path);
+                    $path = trailingslashit(O10N_CACHE_DIR . $path);
                 }
                 $chmod = O10N_CACHE_CHMOD_DIR;
 
             break;
             case "theme":
 
-                $path = $this->trailingslashit($this->trailingslashit($this->theme_directory) . $path);
+                $path = trailingslashit(trailingslashit($this->theme_directory) . $path);
                 $chmod = O10N_THEME_CHMOD_DIR;
 
             break;
             case "themecache":
 
-                $path = $this->trailingslashit(O10N_CACHE_DIR . 'themes/' . $this->trailingslashit(basename($this->theme_directory)) . $path);
+                $path = trailingslashit(O10N_CACHE_DIR . 'themes/' . trailingslashit(basename($this->theme_directory)) . $path);
                 $chmod = O10N_CACHE_CHMOD_DIR;
 
             break;
@@ -480,10 +480,10 @@ class File extends Controller implements Controller_Interface
         if (!isset($this->directory_urls[$pathkey])) {
             switch ($type) {
                 case "cache":
-                    $this->directory_urls[$pathkey] = $this->trailingslashit(O10N_CACHE_URL . $path, '/');
+                    $this->directory_urls[$pathkey] = trailingslashit(O10N_CACHE_URL . $path, '/');
                 break;
                 case "theme":
-                    $this->directory_urls[$pathkey] = $this->trailingslashit($this->trailingslashit(get_stylesheet_directory_uri(), '/') . 'o10n/' . $path, '/');
+                    $this->directory_urls[$pathkey] = trailingslashit(trailingslashit(get_stylesheet_directory_uri(), '/') . 'o10n/' . $path, '/');
                 break;
                 default:
                     throw new Exception('Invalid directory type.', 'core');
@@ -497,19 +497,7 @@ class File extends Controller implements Controller_Interface
 
         return $this->directory_urls[$pathkey];
     }
-
-    /**
-     * Faster trailingslashit
-     *
-     * @link https://codex.wordpress.org/Function_Reference/trailingslashit
-     *
-     * @param string $path The path to add a trailing slash.
-     */
-    final public function trailingslashit($path, $separator = DIRECTORY_SEPARATOR)
-    {
-        return (substr($path, -1) === $separator) ? $path : $path . $separator;
-    }
-
+    
     /**
      * Remove trailing slashes
      *
