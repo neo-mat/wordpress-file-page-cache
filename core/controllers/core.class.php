@@ -26,16 +26,16 @@ class Core
         // core controllers
         'core' => array(
             'admin',
-            'error',
-            'env',
-            'i18n',
             'json',
+            'options',
+            'env',
+            'error',
+            'i18n',
             'file',
             'db',
             'cache',
             'url',
             'regex',
-            'options',
             'install',
             'shutdown',
             'output'

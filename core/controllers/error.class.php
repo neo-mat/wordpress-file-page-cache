@@ -56,11 +56,11 @@ class Error extends Controller implements Controller_Interface
         }
 
         // admin notice
-        if ($admin_notice) {
+        if ($admin_notice && $this->admin) {
             $this->admin->add_notice($error->getMessage(), $category);
         }
 
-        if ($this->env->is_debug() && $category !== 'client') {
+        if ($this->env && $this->env->is_debug() && $category !== 'client') {
             $client = Core::get('client');
             if ($client) {
                 $client->print_exception($category, $error->getMessage());
