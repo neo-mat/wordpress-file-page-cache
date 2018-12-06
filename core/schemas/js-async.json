@@ -138,15 +138,52 @@
                             "dependency": {
                                 "title": "Dependency configuration",
                                 "oneOf": [{
-                                    "title": "A string to match a script URL or contact group key.",
+                                    "title": "A string to match a script URL or concat group key.",
                                     "type": "string",
                                     "minLength": 1
                                 }, {
-                                    "title": "An array of script URLs or contact group keys.",
+                                    "title": "A regular expression to match a script URL or contcat group key.",
+                                    "type": "object",
+                                    "properties": {
+                                        "match": {
+                                            "title": "A regular expression to match a script.",
+                                            "type": "string"
+                                        },
+                                        "regex": {
+                                            "title": "Regular expression match",
+                                            "type": "boolean",
+                                            "enum": [true],
+                                            "default": true
+                                        }
+                                    },
+                                    "required": ["match", "regex"],
+                                    "additionalProperties": false
+                                }, {
+                                    "title": "An array of script URLs or concat group keys.",
                                     "type": "array",
                                     "items": {
-                                        "title": "A string to match a script URL or contact group key.",
-                                        "type": "string"
+                                        "oneOf": [{
+                                            "title": "A string to match a script URL or concat group key.",
+                                            "type": "string",
+                                            "minLength": 1
+                                        }, {
+                                            "title": "A regular expression to match a script URL or contcat group key.",
+                                            "type": "object",
+                                            "properties": {
+                                                "match": {
+                                                    "title": "A regular expression to match a script.",
+                                                    "type": "string"
+                                                },
+                                                "regex": {
+                                                    "title": "Regular expression match",
+                                                    "type": "boolean",
+                                                    "enum": [true],
+                                                    "default": true
+                                                }
+                                            },
+                                            "required": ["match", "regex"],
+                                            "additionalProperties": false
+                                        }]
                                     },
                                     "uniqueItems": true
                                 }]
