@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/o10n-x/wordpress-file-page-cache.svg?branch=master)](https://travis-ci.org/o10n-x/wordpress-file-page-cache) ![Version](https://img.shields.io/github/release/o10n-x/wordpress-file-page-cache.svg)
 
-# WordPress File Page Cache
+# WordPress File Page Cache [beta]
 
 Advanced file based page cache with PHP Opcache boost option ([500x faster than Redis and Memcached](https://blog.graphiq.com/500x-faster-caching-than-redis-memcache-apc-in-php-hhvm-dcd26e8447ad)). 
 
@@ -29,6 +29,22 @@ A recent update of all plugins contains a easy single click install button.
 
 ![image](https://user-images.githubusercontent.com/8843669/39661507-cc1eac5e-5052-11e8-8fba-33c0cc959b07.png)
 </details>
+
+## Beta Notice
+
+This plugin is a **first beta** which was [banned from WordPress.org](https://docs.style.tools/cms-plugins/wordpress/ban) for a yet unknown motive. The plugin never received extensive user feedback which was originally planned and a lot of planned improvements and features were never added. Besides that, the investment by the (now) CEO of PageSpeed.pro Ltd. that was agreed mid 2017 was paid in the beginning of 2018, resulting in a severe delay and a greatly reduced version of the originally planned Advanced Optimization plugin (the bigger plugin was stripped of features and cut into individual plugins).
+
+Thanks to the valuable feedback from Github users, the plugins did receive feedback. The quality of the plugins is very good however in sense of usability/documentation there are simply unresolved issues.
+
+The plugins are able to deliver results for SEO. Our www.e-scooter.co demo website (started in 2018) ranks in the top 10 in Google in many countries and received visitors from 205 countries and is now visited from 174 countries per week on average. In The Netherlands, www.e-scooter.nl ranks #1 for many scooters. The website is currently at 1.5M visits per year. 
+
+**The WPO plugins are operating sublimely.**
+
+![gogoro-prijs](https://user-images.githubusercontent.com/8843669/48940358-90f40e80-ef17-11e8-8bbb-62c3187d8953.png)
+
+![image](https://user-images.githubusercontent.com/8843669/49431914-c964d980-f7ae-11e8-9a60-f5fb3cfd733d.png)
+
+It will take a bit more effort, and maybe some more feedback from users, but then the WPO plugins could simply be 'perfect' for getting Google Lighthouse 100-scores and even better performance results (speed) than would be required for a 100-score (think of the unique innovations such as timed javascript execution and CSS rendering, advanced Web Worker based preload logic, preload on mouse-down and [Service Worker Push](https://github.com/o10n-x/wordpress-http2-optimization/wiki/HTTP-2-Server-Push-vs-Service-Worker-Push) with better performance than HTTP/2 Server Push).
 
 ## Description
 
